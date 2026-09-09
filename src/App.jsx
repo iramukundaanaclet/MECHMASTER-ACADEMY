@@ -1,0 +1,830 @@
+import { useMemo, useState } from 'react'
+import { BrowserRouter, Routes, Route, Link, NavLink, useParams } from 'react-router-dom'
+import Navbar from './components/layout/Navbar'
+import Footer from './components/layout/Footer'
+import CourseCard from './components/courses/CourseCard'
+import CategoryCard from './components/learning/CategoryCard'
+import VideoCard from './components/videos/VideoCard'
+import DiagnosticFlow from './components/diagnostics/DiagnosticFlow'
+import DashboardCard from './components/dashboard/DashboardCard'
+import ProgressBar from './components/common/ProgressBar'
+import Button from './components/common/Button'
+import SectionTitle from './components/common/SectionTitle'
+import courses from './data/courses'
+import automotiveTopics from './data/automotiveTopics'
+import motorcycleTopics from './data/motorcycleTopics'
+import videos from './data/videos'
+import diagnostics from './data/diagnostics'
+import quizzes from './data/quizzes'
+import resources from './data/resources'
+import news from './data/news'
+
+const categoryCards = [
+  { title: 'Automotive', description: 'Vehicle fundamentals, powertrains, electrical and repair systems.', icon: '🚗', path: '/automotive' },
+  { title: 'Motorcycle', description: 'Two- and four-stroke systems, brakes, fuel and electrical learning.', icon: '🏍️', path: '/motorcycle' },
+  { title: 'Repair', description: 'Practical repair workflow from inspection to testing and verification.', icon: '🧰', path: '/learn' },
+  { title: 'Electrical', description: 'Batteries, wiring, sensors, actuators and electronic diagnostics.', icon: '⚡', path: '/learn' },
+  { title: 'Diagnostics', description: 'Symptom-driven troubleshooting with logical step-by-step thinking.', icon: '🔎', path: '/diagnostics' },
+  { title: 'Theory', description: 'Mechanical laws, concepts and engineering fundamentals in plain language.', icon: '📘', path: '/learn' },
+  { title: 'Video Lessons', description: 'Watch practical demonstrations across workshop and service topics.', icon: '🎥', path: '/videos' },
+]
+
+const lessonLibrary = [
+  { id: 'battery-basics', title: 'Battery Basics', category: 'Electrical', objective: 'Identify battery types, testing principles and safe handling.', image: 'https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&w=900&q=80' },
+  { id: 'brake-inspection', title: 'Brake Inspection', category: 'Repair', objective: 'Inspect pads, rotors, fluid, and braking performance issues safely.', image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=900&q=80' },
+  { id: 'engine-oil-system', title: 'Engine Lubrication', category: 'Engine', objective: 'Understand oil flow, protection, contamination and service intervals.', image: 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?auto=format&fit=crop&w=900&q=80' },
+]
+
+const dashboardCourses = [
+  { title: 'Automotive Electrical Systems', percent: 80, type: 'Course' },
+  { title: 'Vehicle Diagnostics', percent: 65, type: 'Course' },
+  { title: 'Motorcycle Technology', percent: 52, type: 'Course' },
+]
+
+const resultTypes = ['Course', 'Lesson', 'Video', 'Diagnostic', 'Resource']
+
+function App() {
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  return (
+    <BrowserRouter>
+      <div className="min-h-screen bg-[#F4F6F8] text-slate-700">
+        <Navbar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+        <main>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/learn" element={<LearnPage />} />
+            <Route path="/automotive" element={<AutomotivePage />} />
+            <Route path="/motorcycle" element={<MotorcyclePage />} />
+            <Route path="/courses" element={<CoursesPage />} />
+            <Route path="/courses/:id" element={<CourseDetailsPage />} />
+            <Route path="/lesson/:id" element={<LessonPage />} />
+            <Route path="/videos" element={<VideosPage />} />
+            <Route path="/diagnostics" element={<DiagnosticsPage />} />
+            <Route path="/resources" element={<ResourcesPage />} />
+            <Route path="/news" element={<NewsPage />} />
+            <Route path="/community" element={<CommunityPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/quiz/:id" element={<QuizPage />} />
+            <Route path="/certificate/:id" element={<CertificatePage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </BrowserRouter>
+  )
+}
+
+function HomePage() {
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const searchResults = useMemo(() => {
+    if (!searchTerm.trim()) return []
+
+    const term = searchTerm.toLowerCase()
+    const records = [
+      ...courses.map((course) => ({ ...course, type: 'Course', category: course.category, description: course.description })),
+      ...videos.map((video) => ({ ...video, type: 'Video', category: video.category, description: video.description })),
+      ...resources.map((resource) => ({ ...resource, type: 'Resource', category: resource.category, description: resource.description })),
+      ...diagnostics.map((item) => ({ ...item, title: item.symptom, type: 'Diagnostic', category: item.category, description: item.solution })),
+      ...lessonLibrary.map((lesson) => ({ ...lesson, title: lesson.title, type: 'Lesson', category: lesson.category, description: lesson.objective })),
+    ]
+
+    return records.filter((entry) => {
+      const haystack = [entry.title, entry.category, entry.type, entry.description, entry.symptom].join(' ').toLowerCase()
+      return haystack.includes(term)
+    })
+  }, [searchTerm])
+
+  return (
+    <>
+      <section className="bg-[#0B1F33] text-white">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:px-8 lg:py-24">
+          <div className="flex flex-col justify-center">
+            <div className="mb-4 inline-flex w-fit rounded-full border border-[#FF7800]/40 bg-[#102847] px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#FFB57A]">
+              MECHMASTER ACADEMY
+            </div>
+            <h1 className="max-w-2xl text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">Master Every Machine. Master Every Skill.</h1>
+            <p className="mt-6 max-w-xl text-lg text-slate-300">
+              Learn automotive and motorcycle technology through structured lessons, videos, diagrams, diagnostics and practical repair knowledge.
+            </p>
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+              <Link to="/courses" className="inline-flex items-center justify-center rounded-full bg-[#FF7800] px-6 py-3.5 text-base font-semibold text-white transition hover:bg-[#e56c00]">Start Learning</Link>
+              <Link to="/videos" className="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/5 px-6 py-3.5 text-base font-semibold text-white transition hover:bg-white/10">Explore Courses</Link>
+            </div>
+          </div>
+
+          <div className="relative rounded-[28px] border border-white/10 bg-gradient-to-br from-[#112b49] to-[#0a1d31] p-4 shadow-2xl">
+            <img
+              src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80"
+              alt="Vehicle workshop"
+              className="h-[420px] w-full rounded-[22px] object-cover"
+            />
+            <div className="absolute -bottom-5 left-8 right-8 rounded-2xl border border-slate-200 bg-white p-4 text-slate-700 shadow-lg">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#FF7800]">Learning path</p>
+                <span className="rounded-full bg-[#F4F6F8] px-2.5 py-1 text-xs font-semibold text-[#0B1F33]">Learn → Watch → Practice → Test</span>
+              </div>
+              <div className="mt-3 flex items-center gap-4 text-sm text-slate-600">
+                <span>Automotive</span>
+                <span>•</span>
+                <span>Motorcycle</span>
+                <span>•</span>
+                <span>Diagnostics</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mb-10 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <SectionTitle eyebrow="Search" title="Find the right skill path" description="Search for courses, lessons, videos, diagnostics and workshop resources." />
+          <div className="w-full max-w-md rounded-full border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search for alternator, brakes, diagnostics..."
+              aria-label="Search learning content"
+              className="w-full border-0 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+            />
+          </div>
+        </div>
+
+        {searchTerm ? (
+          <div className="mb-12 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-lg font-semibold text-[#0B1F33]">Search results for “{searchTerm}”</p>
+              <span className="text-sm text-slate-500">{searchResults.length} result(s)</span>
+            </div>
+            {searchResults.length ? (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {searchResults.slice(0, 6).map((result) => (
+                  <div key={`${result.type}-${result.title}`} className="rounded-2xl border border-slate-200 bg-[#F4F6F8] p-4">
+                    <div className="mb-3 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.16em] text-[#FF7800]">
+                      <span>{result.type}</span>
+                      <span>{result.category}</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-[#0B1F33]">{result.title}</h3>
+                    <p className="mt-2 text-sm text-slate-600">{result.description}</p>
+                    <Link to={result.type === 'Course' ? `/courses/${result.id}` : result.type === 'Video' ? '/videos' : result.type === 'Lesson' ? '/lesson/battery-basics' : result.type === 'Resource' ? '/resources' : '/diagnostics'} className="mt-4 inline-flex rounded-full bg-[#0B1F33] px-3 py-2 text-xs font-semibold text-white">View</Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-[#F4F6F8] p-6 text-center text-slate-600">No results found. Try searching for alternator, brake, engine or diagnostics.</div>
+            )}
+          </div>
+        ) : null}
+
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          {categoryCards.map((item) => (
+            <CategoryCard key={item.title} title={item.title} description={item.description} icon={item.icon} path={item.path} />
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-white py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <SectionTitle eyebrow="Why MechMaster" title="A learning platform designed for real workshop thinking" description="Structured education, practical repair logic, diagnostics and mechanical skills built for students, technicians and enthusiasts." centered />
+          <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {[
+              'Structured learning paths across automotive and motorcycle systems',
+              'Practical knowledge and safety-focused repair habits',
+              'Video lessons, diagnostics, quizzes and workshop-ready resources',
+              'Clear explanations for beginners and deeper technical coverage for advanced learners',
+              'System-by-system understanding instead of random disconnected information',
+              'Future-ready architecture for real courses, certification and student tracking',
+            ].map((item) => (
+              <div key={item} className="rounded-2xl border border-slate-200 bg-[#F4F6F8] p-5 text-base font-medium text-[#0B1F33] shadow-sm">{item}</div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <SectionTitle eyebrow="Featured courses" title="Build your mechanical skill foundation" description="A preview of learning tracks for automotive and motorcycle growth." />
+        <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          {courses.slice(0, 8).map((course) => (
+            <CourseCard key={course.id} course={course} />
+          ))}
+        </div>
+      </section>
+    </>
+  )
+}
+
+function LearnPage() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <SectionTitle eyebrow="Learning Center" title="Organized mechanical knowledge by discipline" description="Explore the main categories and move from fundamentals to repair, diagnostics and practical application." />
+      <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {categoryCards.map((item) => (
+          <CategoryCard key={item.title} title={item.title} description={item.description} icon={item.icon} path={item.path} />
+        ))}
+      </div>
+
+      <div className="mt-16 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="text-2xl font-bold text-[#0B1F33]">Recommended learning flow</h3>
+        <div className="mt-6 grid gap-4 md:grid-cols-5">
+          {['Learn', 'Watch', 'Practice', 'Test', 'Complete'].map((step, index) => (
+            <div key={step} className="rounded-2xl bg-[#F4F6F8] p-4 text-center">
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#FF7800] font-bold text-white">{index + 1}</div>
+              <p className="font-semibold text-[#0B1F33]">{step}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AutomotivePage() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <SectionTitle eyebrow="Automotive Learning" title="Vehicle systems, engine knowledge and service fundamentals" description="A structured breakdown of automotive training categories from basics to diagnostics." />
+      <div className="mt-10 grid gap-6 lg:grid-cols-2">
+        {automotiveTopics.map((group) => (
+          <div key={group.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-xl font-bold text-[#0B1F33]">{group.title}</h3>
+            <ul className="mt-4 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
+              {group.topics.map((topic) => (
+                <li key={topic} className="rounded-xl bg-[#F4F6F8] px-3 py-2">{topic}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MotorcyclePage() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <SectionTitle eyebrow="Motorcycle Academy" title="Motorcycle systems and repair knowledge" description="An independent path dedicated to motorcycle fundamentals, powertrain, electrical and diagnostics." />
+      <div className="mt-10 grid gap-6 lg:grid-cols-2">
+        {motorcycleTopics.map((group) => (
+          <div key={group.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-xl font-bold text-[#0B1F33]">{group.title}</h3>
+            <ul className="mt-4 grid gap-2 text-sm text-slate-600 md:grid-cols-2">
+              {group.topics.map((topic) => (
+                <li key={topic} className="rounded-xl bg-[#F4F6F8] px-3 py-2">{topic}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CoursesPage() {
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const filteredCourses = useMemo(() => {
+    if (!searchTerm.trim()) return courses
+    const term = searchTerm.toLowerCase()
+    return courses.filter((course) => `${course.title} ${course.category} ${course.level}`.toLowerCase().includes(term))
+  }, [searchTerm])
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <SectionTitle eyebrow="Courses" title="Structured learning programs" description="Choose a topic, move through lessons and keep building practical mechanical skill." />
+      <div className="mt-8 max-w-md rounded-full border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <input type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} aria-label="Filter courses" placeholder="Search courses..." className="w-full border-0 bg-transparent text-sm outline-none" />
+      </div>
+      <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {filteredCourses.map((course) => (
+          <CourseCard key={course.id} course={course} />
+        ))}
+      </div>
+      {!filteredCourses.length ? <div className="mt-10 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-slate-600">No course matches your search.</div> : null}
+    </div>
+  )
+}
+
+function CourseDetailsPage() {
+  const params = useParams()
+  const course = courses.find((item) => item.id === params.id)
+
+  if (!course) return <NotFoundPage />
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <nav className="mb-8 text-sm text-slate-500">
+        <Link to="/" className="hover:text-[#0B1F33]">Home</Link>
+        <span className="mx-2">/</span>
+        <Link to="/courses" className="hover:text-[#0B1F33]">Courses</Link>
+        <span className="mx-2">/</span>
+        <span className="text-[#0B1F33]">{course.title}</span>
+      </nav>
+
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <img src={course.image} alt={course.title} className="h-72 w-full object-cover" />
+        <div className="p-8">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#FF7800]">
+            <span>{course.category}</span>
+            <span>•</span>
+            <span>{course.level}</span>
+          </div>
+          <h1 className="mt-4 text-4xl font-black text-[#0B1F33]">{course.title}</h1>
+          <p className="mt-4 max-w-3xl text-slate-600">{course.description}</p>
+
+          <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+            <Link to="/dashboard" className="inline-flex items-center justify-center rounded-full bg-[#FF7800] px-6 py-3 font-semibold text-white">Start / Continue</Link>
+            <Link to={`/quiz/${course.id}`} className="inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 font-semibold text-[#0B1F33]">Take Quiz</Link>
+          </div>
+
+          <div className="mt-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <h2 className="text-2xl font-bold text-[#0B1F33]">Course overview</h2>
+              <ul className="mt-5 space-y-3 text-slate-600">
+                {course.lessonsList.map((lesson) => (
+                  <li key={lesson} className="rounded-xl bg-[#F4F6F8] px-4 py-3">{lesson}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-2xl bg-[#F4F6F8] p-5">
+              <h3 className="text-lg font-bold text-[#0B1F33]">Progress</h3>
+              <div className="mt-4">
+                <ProgressBar value={course.progress} label="Course completion" />
+              </div>
+              <div className="mt-6 text-sm text-slate-600">
+                <p>{course.lessons} total lessons</p>
+                <p className="mt-2">Suggested next step: {course.lessonsList[0]}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LessonPage() {
+  const params = useParams()
+  const lesson = lessonLibrary.find((item) => item.id === params.id) || lessonLibrary[0]
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+      <nav className="mb-6 text-sm text-slate-500">
+        <Link to="/" className="hover:text-[#0B1F33]">Home</Link>
+        <span className="mx-2">/</span>
+        <Link to="/courses" className="hover:text-[#0B1F33]">Courses</Link>
+        <span className="mx-2">/</span>
+        <span className="text-[#0B1F33]">Lesson</span>
+      </nav>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#FF7800]">
+          <span>{lesson.category}</span>
+          <span>•</span>
+          <span>Lesson</span>
+        </div>
+        <h1 className="mt-4 text-4xl font-black text-[#0B1F33]">{lesson.title}</h1>
+        <p className="mt-4 max-w-2xl text-slate-600"><strong>Learning objective:</strong> {lesson.objective}</p>
+
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+          <div>
+            <div className="rounded-2xl border border-slate-200 bg-[#F4F6F8] p-4">
+              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-[#0B1F33]">Main lesson content</p>
+              <p className="text-slate-600">This lesson explains the system components, how they work together, and what to inspect when a fault appears. It is intentionally presented as a structured educational module for a future online classroom.</p>
+            </div>
+            <img src={lesson.image} alt={lesson.title} className="mt-6 h-72 w-full rounded-2xl object-cover" />
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <h3 className="font-bold text-[#0B1F33]">Practical notes</h3>
+                <p className="mt-2 text-sm text-slate-600">Check for wear, contamination, voltage drops and correct fitment before replacing parts.</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <h3 className="font-bold text-[#0B1F33]">Safety notes</h3>
+                <p className="mt-2 text-sm text-slate-600">Wear PPE, isolate the vehicle correctly and follow the relevant safety procedures.</p>
+              </div>
+            </div>
+          </div>
+
+          <aside className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-[#F4F6F8] p-4">
+              <h3 className="font-bold text-[#0B1F33]">Common mistakes</h3>
+              <ul className="mt-3 list-disc pl-5 text-sm text-slate-600">
+                <li>Skipping inspection before replacement</li>
+                <li>Ignoring safety procedures</li>
+                <li>Misreading measurement values</li>
+              </ul>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-[#F4F6F8] p-4">
+              <h3 className="font-bold text-[#0B1F33]">Video area</h3>
+              <div className="mt-3 rounded-xl bg-[#0B1F33] p-4 text-center text-sm font-medium text-white">Demo lesson video placeholder</div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-[#F4F6F8] p-4">
+              <h3 className="font-bold text-[#0B1F33]">Navigation</h3>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button type="button" className="rounded-full bg-[#0B1F33] px-4 py-2 text-sm font-semibold text-white">Previous lesson</button>
+                <button type="button" className="rounded-full bg-[#FF7800] px-4 py-2 text-sm font-semibold text-white">Next lesson</button>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link to={`/quiz/${lesson.category.toLowerCase() || 'alternator-quiz'}`} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[#0B1F33]">Quiz</Link>
+                <button type="button" className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[#0B1F33]">Mark as completed</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function VideosPage() {
+  const latest = videos.slice(0, 4)
+  const mostWatched = videos.slice(2, 6)
+  const recommended = videos.slice(1, 5)
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <SectionTitle eyebrow="Video Lessons" title="Watch practical mechanical learning content" description="A modern library of automotive, motorcycle and diagnostic video lessons for workshop skill building." />
+      <div className="mt-10 space-y-12">
+        <SectionBlock title="Latest Lessons" items={latest} />
+        <SectionBlock title="Most Watched" items={mostWatched} />
+        <SectionBlock title="Recently Added" items={videos.slice(4, 8)} />
+        <SectionBlock title="Recommended" items={recommended} />
+      </div>
+    </div>
+  )
+}
+
+function SectionBlock({ title, items }) {
+  return (
+    <div>
+      <h3 className="mb-5 text-2xl font-bold text-[#0B1F33]">{title}</h3>
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {items.map((video) => (
+          <VideoCard key={video.id} video={video} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function DiagnosticsPage() {
+  const [selected, setSelected] = useState(diagnostics[0])
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <SectionTitle eyebrow="Diagnostics Center" title="Problem → cause → test → solution" description="Use a structured troubleshooting flow to isolate faults and support better mechanical decision-making." />
+
+      <div className="mt-10 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+        <div className="space-y-4">
+          {diagnostics.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setSelected(item)}
+              className={`w-full rounded-2xl border p-4 text-left transition ${selected.id === item.id ? 'border-[#FF7800] bg-[#FFF3E8]' : 'border-slate-200 bg-white'}`}
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FF7800]">{item.category}</p>
+              <p className="mt-2 text-lg font-bold text-[#0B1F33]">{item.symptom}</p>
+            </button>
+          ))}
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FF7800]">Selected symptom</p>
+          <h3 className="mt-3 text-3xl font-bold text-[#0B1F33]">{selected.symptom}</h3>
+          <div className="mt-6 grid gap-6 md:grid-cols-2">
+            <div>
+              <h4 className="font-bold text-[#0B1F33]">Possible causes</h4>
+              <ul className="mt-3 list-disc pl-5 text-slate-600">{selected.possibleCauses.map((cause) => <li key={cause}>{cause}</li>)}</ul>
+            </div>
+            <div>
+              <h4 className="font-bold text-[#0B1F33]">Test steps</h4>
+              <ul className="mt-3 list-disc pl-5 text-slate-600">{selected.tests.map((test) => <li key={test}>{test}</li>)}</ul>
+            </div>
+          </div>
+          <div className="mt-6 rounded-2xl bg-[#F4F6F8] p-4">
+            <h4 className="font-bold text-[#0B1F33]">Solution</h4>
+            <p className="mt-2 text-slate-600">{selected.solution}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-16">
+        <DiagnosticFlow diagnostics={diagnostics} />
+      </div>
+    </div>
+  )
+}
+
+function ResourcesPage() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <SectionTitle eyebrow="Tools & Resources" title="Support your learning with practical references" description="A structured set of tools, formulas and workshop references for ongoing mechanical learning." />
+      <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {resources.map((resource) => (
+          <div key={resource.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FF7800]">{resource.type}</p>
+            <h3 className="mt-3 text-xl font-bold text-[#0B1F33]">{resource.title}</h3>
+            <p className="mt-3 text-sm text-slate-600">{resource.description}</p>
+            <div className="mt-5 inline-flex rounded-full bg-[#F4F6F8] px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#0B1F33]">{resource.category}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function NewsPage() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <SectionTitle eyebrow="Mechanic News" title="Sample news and learning articles" description="This area is intentionally structured as demo content for future updates and article management." />
+      <div className="mt-10 grid gap-6 lg:grid-cols-3">
+        {news.map((article) => (
+          <article key={article.id} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FF7800]">{article.category}</p>
+            <h3 className="mt-3 text-2xl font-bold text-[#0B1F33]">{article.title}</h3>
+            <p className="mt-3 text-slate-600">{article.summary}</p>
+            <p className="mt-4 rounded-xl bg-[#F4F6F8] p-3 text-sm text-slate-500">{article.preview}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CommunityPage() {
+  const sampleResponse = [
+    { name: 'Mechanic Mentor', answer: 'Check battery voltage first, then fuel delivery and ignition, because cranking without fire usually points to a fuel or spark problem.' },
+    { name: 'Service Guide', answer: 'Inspect spark, fuel pressure and crank signal before replacing expensive parts. Build a process instead of guessing.' },
+  ]
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+      <SectionTitle eyebrow="Ask a Mechanic" title="Community question example" description="A frontend concept for future community discussion. This is static demo content only." />
+
+      <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FF7800]">Question</p>
+        <h3 className="mt-3 text-2xl font-bold text-[#0B1F33]">“My Toyota is cranking but not starting. What should I check?”</h3>
+        <div className="mt-4 flex flex-wrap gap-3 text-sm text-slate-600">
+          <span className="rounded-full bg-[#F4F6F8] px-3 py-2">Category: Diagnostics</span>
+          <span className="rounded-full bg-[#F4F6F8] px-3 py-2">Vehicle: Automotive</span>
+        </div>
+
+        <div className="mt-8 space-y-5">
+          {sampleResponse.map((response) => (
+            <div key={response.name} className="rounded-2xl border border-slate-200 bg-[#F4F6F8] p-4">
+              <p className="font-bold text-[#0B1F33]">{response.name}</p>
+              <p className="mt-2 text-slate-600">{response.answer}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8">
+          <h4 className="font-bold text-[#0B1F33]">Related lessons</h4>
+          <div className="mt-3 flex flex-wrap gap-3">
+            {['Starting systems', 'Fuel system checks', 'Spark diagnosis'].map((item) => (
+              <span key={item} className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">{item}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AboutPage() {
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+      <SectionTitle eyebrow="About" title="Developing confident mechanical learners" description="MECHMASTER ACADEMY is a conceptual educational platform built to teach practical mechanical awareness, diagnostics and service logic." />
+      <div className="mt-10 space-y-6 text-slate-600">
+        <p>It is designed for automotive and motorcycle students, technicians and enthusiasts who want to strengthen their understanding of mechanical systems in a clear and structured way.</p>
+        <p>Rather than relying on scattered information, the platform organizes learning around the real flow of a mechanic’s thinking: learn the system, understand its purpose, inspect it, diagnose faults and validate the repair.</p>
+        <p>Topics include vehicle fundamentals, engine systems, electrical and electronic troubleshooting, repair and maintenance, motorcycle technology, diagnostics and workshop safety.</p>
+      </div>
+    </div>
+  )
+}
+
+function ContactPage() {
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+      <SectionTitle eyebrow="Contact" title="Ask a question or start a conversation" description="The contact form is front-end only and uses placeholder values until real contact details are provided." />
+      <div className="mt-10 grid gap-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-2">
+        <form className="space-y-4">
+          <div>
+            <label htmlFor="name" className="mb-2 block text-sm font-medium text-[#0B1F33]">Name</label>
+            <input id="name" type="text" className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="Your name" />
+          </div>
+          <div>
+            <label htmlFor="email" className="mb-2 block text-sm font-medium text-[#0B1F33]">Email</label>
+            <input id="email" type="email" className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="[EMAIL ADDRESS]" />
+          </div>
+          <div>
+            <label htmlFor="message" className="mb-2 block text-sm font-medium text-[#0B1F33]">Message</label>
+            <textarea id="message" rows="5" className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="Your message" />
+          </div>
+          <Button variant="primary">Send Message</Button>
+        </form>
+
+        <div className="rounded-2xl bg-[#0B1F33] p-6 text-white">
+          <h3 className="text-xl font-bold">Contact details</h3>
+          <ul className="mt-5 space-y-3 text-sm text-slate-200">
+            <li>Email: [EMAIL ADDRESS]</li>
+            <li>Phone: [PHONE NUMBER]</li>
+            <li>WhatsApp: [WHATSAPP NUMBER]</li>
+            <li>Address: [ADDRESS]</li>
+          </ul>
+          <a href="https://wa.me/" target="_blank" rel="noreferrer" className="mt-6 inline-flex rounded-full bg-[#FF7800] px-5 py-3 font-semibold text-white">WhatsApp</a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LoginPage() {
+  return (
+    <div className="mx-auto max-w-md px-4 py-20 sm:px-6 lg:px-8">
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <h1 className="text-3xl font-black text-[#0B1F33]">Welcome back</h1>
+        <p className="mt-3 text-slate-600">Demo login interface only. No real authentication is connected yet.</p>
+        <form className="mt-8 space-y-5">
+          <div>
+            <label htmlFor="login-email" className="mb-2 block text-sm font-medium text-[#0B1F33]">Email</label>
+            <input id="login-email" type="email" className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="student@example.com" />
+          </div>
+          <div>
+            <label htmlFor="password" className="mb-2 block text-sm font-medium text-[#0B1F33]">Password</label>
+            <input id="password" type="password" className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="••••••••" />
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button variant="primary" className="flex-1">Login</Button>
+            <Button variant="secondary" className="flex-1">Forgot Password</Button>
+          </div>
+          <Button variant="dark" className="w-full">Create Account</Button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function DashboardPage() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#FF7800]">Student dashboard</p>
+          <h1 className="mt-2 text-4xl font-black text-[#0B1F33]">Welcome back 👋</h1>
+        </div>
+        <Link to="/certificate/automotive-electrical-systems" className="rounded-full bg-[#0B1F33] px-5 py-3 text-sm font-semibold text-white">View Certificate</Link>
+      </div>
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        <DashboardCard title="My Courses" value="5" subtitle="Active learning tracks" />
+        <DashboardCard title="Completed Lessons" value="18" subtitle="Across electrical, engine and diagnostics" />
+        <DashboardCard title="Certificates" value="2" subtitle="Ready for review" />
+        <DashboardCard title="Quiz Results" value="92%" subtitle="Average score" />
+      </div>
+
+      <div className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-2xl font-bold text-[#0B1F33]">Continue Learning</h2>
+          <div className="mt-6 space-y-4">
+            {dashboardCourses.map((item) => (
+              <div key={item.title} className="rounded-2xl bg-[#F4F6F8] p-4">
+                <div className="mb-3 flex justify-between text-sm font-medium text-[#0B1F33]">
+                  <span>{item.title}</span>
+                  <span>{item.percent}%</span>
+                </div>
+                <ProgressBar value={item.percent} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-[#0B1F33]">Saved Lessons</h2>
+            <ul className="mt-4 space-y-3 text-sm text-slate-600">
+              <li>• Battery Basics</li>
+              <li>• Brake Inspection</li>
+              <li>• Engine Lubrication</li>
+            </ul>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-[#0B1F33]">Learning Progress</h2>
+            <div className="mt-4">
+              <ProgressBar value={74} label="Overall progress" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function QuizPage() {
+  const params = useParams()
+  const selectedQuiz = quizzes.find((quiz) => quiz.id === params.id) || quizzes[0]
+  const [currentQuestion, setCurrentQuestion] = useState(0)
+  const [selectedAnswer, setSelectedAnswer] = useState('')
+  const [score, setScore] = useState(0)
+  const [submitted, setSubmitted] = useState(false)
+
+  const question = selectedQuiz.questions[currentQuestion]
+
+  const handleSubmit = () => {
+    if (selectedAnswer === question.answer) {
+      setScore((value) => value + 1)
+    }
+    if (currentQuestion < selectedQuiz.questions.length - 1) {
+      setCurrentQuestion((value) => value + 1)
+      setSelectedAnswer('')
+    } else {
+      setSubmitted(true)
+    }
+  }
+
+  const handleRestart = () => {
+    setCurrentQuestion(0)
+    setSelectedAnswer('')
+    setScore(0)
+    setSubmitted(false)
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#FF7800]">Quiz</p>
+            <h1 className="mt-2 text-3xl font-black text-[#0B1F33]">{selectedQuiz.title}</h1>
+          </div>
+          <span className="rounded-full bg-[#F4F6F8] px-4 py-2 text-sm font-semibold text-[#0B1F33]">Question {currentQuestion + 1}/{selectedQuiz.questions.length}</span>
+        </div>
+
+        {submitted ? (
+          <div>
+            <h2 className="text-2xl font-bold text-[#0B1F33]">Score: {score}/{selectedQuiz.questions.length}</h2>
+            <p className="mt-4 text-slate-600">Great effort. Review the lesson and continue building the skill step by step.</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button type="button" onClick={handleRestart} className="rounded-full bg-[#FF7800] px-5 py-3 font-semibold text-white">Restart Quiz</button>
+              <Link to="/dashboard" className="rounded-full border border-slate-300 bg-white px-5 py-3 font-semibold text-[#0B1F33]">Continue Learning</Link>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-xl font-semibold text-[#0B1F33]">{question.question}</p>
+            <div className="mt-6 space-y-3">
+              {question.options.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setSelectedAnswer(option)}
+                  className={`block w-full rounded-2xl border px-4 py-3 text-left text-base transition ${selectedAnswer === option ? 'border-[#FF7800] bg-[#FFF3E8] text-[#0B1F33]' : 'border-slate-200 bg-[#F4F6F8] text-slate-700 hover:border-slate-300'}`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <button type="button" onClick={handleSubmit} className="rounded-full bg-[#FF7800] px-5 py-3 font-semibold text-white" disabled={!selectedAnswer}>Next</button>
+              <button type="button" onClick={handleRestart} className="rounded-full border border-slate-300 bg-white px-5 py-3 font-semibold text-[#0B1F33]">Restart</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function CertificatePage() {
+  const { id } = useParams()
+
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="rounded-[32px] border-[6px] border-[#FF7800] bg-white p-10 text-center shadow-xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#FF7800]">MECHMASTER ACADEMY</p>
+        <h1 className="mt-4 text-4xl font-black text-[#0B1F33]">Certificate of Completion</h1>
+        <p className="mt-6 text-slate-600">This certifies that</p>
+        <p className="mt-3 text-3xl font-bold text-[#0B1F33]">Student Name</p>
+        <p className="mt-6 text-slate-600">successfully completed</p>
+        <p className="mt-2 text-2xl font-bold text-[#FF7800]">{id ? id.replace(/-/g, ' ') : 'Automotive Electrical Systems'}</p>
+      </div>
+    </div>
+  )
+}
+
+function NotFoundPage() {
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-20 text-center sm:px-6 lg:px-8">
+      <h1 className="text-5xl font-black text-[#0B1F33]">404</h1>
+      <p className="mt-4 text-xl text-slate-600">The page you are looking for could not be found.</p>
+      <Link to="/" className="mt-8 inline-flex rounded-full bg-[#FF7800] px-6 py-3 font-semibold text-white">Back to Home</Link>
+    </div>
+  )
+}
+
+export default App
