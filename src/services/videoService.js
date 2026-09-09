@@ -16,7 +16,6 @@ const firebaseConfigured = Object.values(firebaseConfig).every(Boolean)
 const firebaseApp = firebaseConfigured ? initializeApp(firebaseConfig) : null
 const auth = firebaseApp ? getAuth(firebaseApp) : null
 const database = firebaseApp ? getDatabase(firebaseApp) : null
-const localVideosStorageKey = 'mechmaster-local-videos'
 
 const fallbackVideos = [
   {
@@ -56,15 +55,6 @@ function recordsFromSnapshot(snapshot) {
   return Object.values(snapshot.val())
 }
 
-function getLocalVideos() {
-  try {
-    const storedVideos = localStorage.getItem(localVideosStorageKey)
-    return storedVideos ? JSON.parse(storedVideos) : []
-  } catch (error) {
-    return []
-  }
-}
-
 async function getAuthenticatedUser() {
   if (!auth) return null
   if (auth.currentUser) return auth.currentUser
@@ -78,7 +68,7 @@ async function getAuthenticatedUser() {
 }
 
 export async function getPublishedVideos() {
-  if (!database) return [...fallbackVideos, ...getLocalVideos().filter((video) => video.published)]
+  if (!database) return fallbackVideos
 
   try {
     const videosQuery = query(ref(database, 'videos'), orderByChild('published'), equalTo(true))
@@ -91,7 +81,7 @@ export async function getPublishedVideos() {
 }
 
 export async function getAllVideos() {
-  if (!database) return [...fallbackVideos, ...getLocalVideos()]
+  if (!database) return fallbackVideos
   try {
     const snapshot = await get(ref(database, 'videos'))
     return recordsFromSnapshot(snapshot)
@@ -102,7 +92,7 @@ export async function getAllVideos() {
 }
 
 export async function getVideoById(id) {
-  if (!database) return [...fallbackVideos, ...getLocalVideos()].find((video) => video.id === id) || null
+  if (!database) return fallbackVideos.find((video) => video.id === id) || null
   try {
     const snapshot = await get(ref(database, `videos/${id}`))
     return snapshot.exists() ? snapshot.val() : null

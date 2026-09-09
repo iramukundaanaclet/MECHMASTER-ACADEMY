@@ -25,16 +25,6 @@ import { createVideo, deleteVideo, getAdminSession, getAllVideos, getPublishedVi
 import { getYouTubeId, getYouTubeThumbnail, isValidYouTubeUrl } from './utils/youtube'
 
 const adminSessionStorageKey = 'mechmaster-admin-session'
-const localVideosStorageKey = 'mechmaster-local-videos'
-
-function getStoredVideos() {
-  try {
-    const storedVideos = localStorage.getItem(localVideosStorageKey)
-    return storedVideos ? JSON.parse(storedVideos) : []
-  } catch (error) {
-    return []
-  }
-}
 const categoryCards = [
   { title: 'Automotive', description: 'Vehicle fundamentals, powertrains, electrical and repair systems.', icon: '🚗', path: '/automotive' },
   { title: 'Motorcycle', description: 'Two- and four-stroke systems, brakes, fuel and electrical learning.', icon: '🏍️', path: '/motorcycle' },
@@ -496,15 +486,10 @@ function VideosPage() {
 
     async function loadVideos() {
       const publishedVideos = await getPublishedVideos()
-      const fallbackVideos = getStoredVideos()
-      const mergedVideos = [...fallbackVideos, ...publishedVideos].filter((video, index, list) => {
-        const key = video.id || `${video.youtube_video_id || video.youtube_url || 'video'}-${index}`
-        return list.findIndex((item) => (item.id || `${item.youtube_video_id || item.youtube_url || 'video'}-${index}`) === key) === index
-      })
 
       if (!isMounted) return
 
-      const safeVideos = mergedVideos.length ? mergedVideos : videos
+      const safeVideos = publishedVideos.length ? publishedVideos : videos
       setAllVideos(safeVideos)
       setSelectedVideo((current) => current || safeVideos[0])
     }
@@ -606,12 +591,7 @@ function AdminVideosPage({ adminSession, onLogout }) {
   const refreshVideos = async () => {
     setLoading(true)
     const allVideos = await getAllVideos()
-    const fallbackVideos = getStoredVideos()
-    const mergedVideos = [...fallbackVideos, ...allVideos].filter((video, index, list) => {
-      const key = video.id || `video-${index}`
-      return list.findIndex((item) => (item.id || `video-${index}`) === key) === index
-    })
-    setVideos(mergedVideos)
+    setVideos(allVideos)
     setLoading(false)
   }
 
