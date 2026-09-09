@@ -1,10 +1,13 @@
-import { useMemo, useState } from 'react'
-import { BrowserRouter, Routes, Route, Link, NavLink, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { BrowserRouter, Routes, Route, Link, NavLink, useNavigate, useParams } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 import CourseCard from './components/courses/CourseCard'
 import CategoryCard from './components/learning/CategoryCard'
 import VideoCard from './components/videos/VideoCard'
+import VideoFilters from './components/videos/VideoFilters'
+import VideoSearch from './components/videos/VideoSearch'
+import YouTubePlayer from './components/videos/YouTubePlayer'
 import DiagnosticFlow from './components/diagnostics/DiagnosticFlow'
 import DashboardCard from './components/dashboard/DashboardCard'
 import ProgressBar from './components/common/ProgressBar'
@@ -18,6 +21,29 @@ import diagnostics from './data/diagnostics'
 import quizzes from './data/quizzes'
 import resources from './data/resources'
 import news from './data/news'
+import { createVideo, deleteVideo, getAllVideos, getPublishedVideos, isVideoDuplicate } from './services/videoService'
+import { getYouTubeId, getYouTubeThumbnail, isValidYouTubeUrl } from './utils/youtube'
+
+const defaultAdminCredentials = {
+  email: 'admin@mechmaster.local',
+  password: 'MechMaster123!',
+}
+
+const adminSessionStorageKey = 'mechmaster-admin-session'
+const videoFallbackStorageKey = 'mechmaster-videos'
+
+function getStoredVideos() {
+  try {
+    const raw = localStorage.getItem(videoFallbackStorageKey)
+    return raw ? JSON.parse(raw) : []
+  } catch (error) {
+    return []
+  }
+}
+
+function persistStoredVideos(items) {
+  localStorage.setItem(videoFallbackStorageKey, JSON.stringify(items))
+}
 
 const categoryCards = [
   { title: 'Automotive', description: 'Vehicle fundamentals, powertrains, electrical and repair systems.', icon: '🚗', path: '/automotive' },
@@ -45,6 +71,23 @@ const resultTypes = ['Course', 'Lesson', 'Video', 'Diagnostic', 'Resource']
 
 function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [adminSession, setAdminSession] = useState(() => {
+    try {
+      const saved = localStorage.getItem(adminSessionStorageKey)
+      return saved ? JSON.parse(saved) : null
+    } catch (error) {
+      return null
+    }
+  })
+
+  useEffect(() => {
+    if (adminSession) {
+      localStorage.setItem(adminSessionStorageKey, JSON.stringify(adminSession))
+      return
+    }
+
+    localStorage.removeItem(adminSessionStorageKey)
+  }, [adminSession])
 
   return (
     <BrowserRouter>
@@ -66,7 +109,8 @@ function App() {
             <Route path="/community" element={<CommunityPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
-            <Route path="/login" element={<LoginPage />} />
+            <Route path="/login" element={<LoginPage adminSession={adminSession} onLogin={setAdminSession} />} />
+            <Route path="/admin/videos" element={adminSession ? <AdminVideosPage adminSession={adminSession} onLogout={() => setAdminSession(null)} /> : <LoginPage adminSession={adminSession} onLogin={setAdminSession} />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/quiz/:id" element={<QuizPage />} />
             <Route path="/certificate/:id" element={<CertificatePage />} />
@@ -441,31 +485,370 @@ function LessonPage() {
 }
 
 function VideosPage() {
-  const latest = videos.slice(0, 4)
-  const mostWatched = videos.slice(2, 6)
-  const recommended = videos.slice(1, 5)
+  const [allVideos, setAllVideos] = useState(videos)
+  const [selectedVideo, setSelectedVideo] = useState(videos[0])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filters, setFilters] = useState({ vehicleType: 'All', category: 'All', level: 'All' })
+
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadVideos() {
+      const publishedVideos = await getPublishedVideos()
+      const fallbackVideos = getStoredVideos()
+      const mergedVideos = [...fallbackVideos, ...publishedVideos].filter((video, index, list) => {
+        const key = video.id || `${video.youtube_video_id || video.youtube_url || 'video'}-${index}`
+        return list.findIndex((item) => (item.id || `${item.youtube_video_id || item.youtube_url || 'video'}-${index}`) === key) === index
+      })
+
+      if (!isMounted) return
+
+      const safeVideos = mergedVideos.length ? mergedVideos : videos
+      setAllVideos(safeVideos)
+      setSelectedVideo((current) => current || safeVideos[0])
+    }
+
+    loadVideos()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const filteredVideos = useMemo(() => {
+    return allVideos.filter((video) => {
+      const videoType = video.vehicle_type || video.category || 'Automotive'
+      const category = video.category || 'General'
+      const level = video.level || 'Beginner'
+      const title = (video.title || '').toLowerCase()
+      const description = (video.description || '').toLowerCase()
+      const matchesSearch = !searchTerm || title.includes(searchTerm.toLowerCase()) || description.includes(searchTerm.toLowerCase())
+      const matchesVehicle = filters.vehicleType === 'All' || videoType === filters.vehicleType
+      const matchesCategory = filters.category === 'All' || category === filters.category
+      const matchesLevel = filters.level === 'All' || level === filters.level
+
+      return matchesSearch && matchesVehicle && matchesCategory && matchesLevel
+    })
+  }, [allVideos, searchTerm, filters])
+
+  useEffect(() => {
+    if (!filteredVideos.length) {
+      setSelectedVideo(null)
+      return
+    }
+
+    if (!selectedVideo || !filteredVideos.some((video) => video.id === selectedVideo.id)) {
+      setSelectedVideo(filteredVideos[0])
+    }
+  }, [filteredVideos, selectedVideo])
+
+  const selectedVideoId = selectedVideo ? selectedVideo.youtube_video_id || getYouTubeId(selectedVideo.youtube_url || '') : ''
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
       <SectionTitle eyebrow="Video Lessons" title="Watch practical mechanical learning content" description="A modern library of automotive, motorcycle and diagnostic video lessons for workshop skill building." />
-      <div className="mt-10 space-y-12">
-        <SectionBlock title="Latest Lessons" items={latest} />
-        <SectionBlock title="Most Watched" items={mostWatched} />
-        <SectionBlock title="Recently Added" items={videos.slice(4, 8)} />
-        <SectionBlock title="Recommended" items={recommended} />
+
+      <div className="mt-8 flex flex-col gap-4">
+        <VideoSearch value={searchTerm} onChange={setSearchTerm} />
+        <VideoFilters filters={filters} onChange={(key, value) => setFilters((current) => ({ ...current, [key]: value }))} />
+      </div>
+
+      <div className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          {selectedVideo ? (
+            <>
+              <YouTubePlayer videoId={selectedVideoId || selectedVideo.youtube_video_id || selectedVideo.id} title={selectedVideo.title} />
+              <div className="mt-6">
+                <div className="flex flex-wrap items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#FF7800]">
+                  <span>{selectedVideo.category || selectedVideo.vehicle_type || 'General'}</span>
+                  <span>•</span>
+                  <span>{selectedVideo.level || 'Beginner'}</span>
+                </div>
+                <h3 className="mt-4 text-3xl font-black text-[#0B1F33]">{selectedVideo.title}</h3>
+                <p className="mt-3 text-slate-600">{selectedVideo.description}</p>
+                <div className="mt-4 flex flex-wrap gap-3 text-sm text-slate-500">
+                  <span className="rounded-full bg-[#F4F6F8] px-3 py-2">{selectedVideo.duration || 'Video lesson'}</span>
+                  <span className="rounded-full bg-[#F4F6F8] px-3 py-2">{selectedVideo.vehicle_type || 'Automotive'}</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-[#F4F6F8] p-8 text-center text-slate-600">No videos match your current filters.</div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          {filteredVideos.length ? filteredVideos.map((video) => (
+            <VideoCard key={video.id || video.youtube_video_id || video.youtube_url} video={video} onSelect={() => setSelectedVideo(video)} selected={selectedVideo?.id === video.id} />
+          )) : null}
+        </div>
       </div>
     </div>
   )
 }
 
-function SectionBlock({ title, items }) {
+function AdminVideosPage({ adminSession, onLogout }) {
+  const [videos, setVideos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [status, setStatus] = useState('')
+  const [error, setError] = useState('')
+  const [form, setForm] = useState({
+    youtube_url: '',
+    title: '',
+    description: '',
+    category: 'Engine',
+    vehicle_type: 'Automotive',
+    level: 'Beginner',
+    published: true,
+  })
+
+  const refreshVideos = async () => {
+    setLoading(true)
+    const allVideos = await getAllVideos()
+    const fallbackVideos = getStoredVideos()
+    const mergedVideos = [...fallbackVideos, ...allVideos].filter((video, index, list) => {
+      const key = video.id || `video-${index}`
+      return list.findIndex((item) => (item.id || `video-${index}`) === key) === index
+    })
+    setVideos(mergedVideos)
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    refreshVideos()
+  }, [])
+
+  const handleInputChange = (event) => {
+    const { name, value, type, checked } = event.target
+    setForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }))
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setError('')
+    setStatus('')
+
+    if (!form.youtube_url || !isValidYouTubeUrl(form.youtube_url)) {
+      setError('Please paste a valid YouTube URL.')
+      return
+    }
+
+    const youtubeVideoId = getYouTubeId(form.youtube_url)
+    const duplicate = await isVideoDuplicate(youtubeVideoId)
+    if (duplicate) {
+      setError('This video already exists in the library.')
+      return
+    }
+
+    const payload = {
+      id: `video-${Date.now()}`,
+      youtube_url: form.youtube_url,
+      youtube_video_id: youtubeVideoId,
+      title: form.title.trim() || `Mechanical video ${Date.now().toString().slice(-4)}`,
+      description: form.description.trim() || 'New workshop lesson added by admin.',
+      category: form.category,
+      vehicle_type: form.vehicle_type,
+      level: form.level,
+      duration: 'N/A',
+      thumbnail_url: getYouTubeThumbnail(youtubeVideoId),
+      thumbnail: getYouTubeThumbnail(youtubeVideoId),
+      provider: 'MechMaster Academy',
+      published: form.published,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error: saveError } = await createVideo(payload)
+
+    if (saveError) {
+      setError('Unable to save the video right now.')
+      return
+    }
+
+    const savedVideo = data || payload
+    const merged = [savedVideo, ...videos]
+    persistStoredVideos(merged)
+    setVideos(merged)
+    setForm({
+      youtube_url: '',
+      title: '',
+      description: '',
+      category: 'Engine',
+      vehicle_type: 'Automotive',
+      level: 'Beginner',
+      published: true,
+    })
+    setStatus('Video saved successfully and is now visible to visitors when published.')
+  }
+
+  const handleDelete = async (videoId) => {
+    await deleteVideo(videoId)
+    const nextVideos = videos.filter((video) => video.id !== videoId)
+    setVideos(nextVideos)
+    persistStoredVideos(nextVideos)
+  }
+
   return (
-    <div>
-      <h3 className="mb-5 text-2xl font-bold text-[#0B1F33]">{title}</h3>
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {items.map((video) => (
-          <VideoCard key={video.id} video={video} />
-        ))}
+    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#FF7800]">Admin access</p>
+          <h1 className="mt-2 text-4xl font-black text-[#0B1F33]">Video Management</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="rounded-full bg-[#F4F6F8] px-3 py-2 text-sm font-medium text-[#0B1F33]">{adminSession?.email}</span>
+          <button type="button" onClick={onLogout} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[#0B1F33]">Logout</button>
+        </div>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+        <form onSubmit={handleSubmit} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-2xl font-bold text-[#0B1F33]">Add new video</h2>
+
+          <div className="mt-6 space-y-4">
+            <div>
+              <label htmlFor="youtube_url" className="mb-2 block text-sm font-medium text-[#0B1F33]">YouTube URL</label>
+              <input id="youtube_url" name="youtube_url" value={form.youtube_url} onChange={handleInputChange} className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="https://www.youtube.com/watch?v=..." />
+            </div>
+
+            <div>
+              <label htmlFor="title" className="mb-2 block text-sm font-medium text-[#0B1F33]">Video title</label>
+              <input id="title" name="title" value={form.title} onChange={handleInputChange} className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="Alternator Diagnosis for Beginners" />
+            </div>
+
+            <div>
+              <label htmlFor="description" className="mb-2 block text-sm font-medium text-[#0B1F33]">Description</label>
+              <textarea id="description" name="description" rows="4" value={form.description} onChange={handleInputChange} className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="Explain the lesson topic and what learners will take away." />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <label htmlFor="category" className="mb-2 block text-sm font-medium text-[#0B1F33]">Category</label>
+                <select id="category" name="category" value={form.category} onChange={handleInputChange} className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]">
+                  {['Engine', 'Brakes', 'Electrical', 'Transmission', 'Suspension', 'Diagnostics', 'Body Repair', 'General'].map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="vehicle_type" className="mb-2 block text-sm font-medium text-[#0B1F33]">Vehicle type</label>
+                <select id="vehicle_type" name="vehicle_type" value={form.vehicle_type} onChange={handleInputChange} className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]">
+                  {['Automotive', 'Motorcycle'].map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="level" className="mb-2 block text-sm font-medium text-[#0B1F33]">Level</label>
+                <select id="level" name="level" value={form.level} onChange={handleInputChange} className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]">
+                  {['Beginner', 'Intermediate', 'Advanced'].map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-3 text-sm font-medium text-[#0B1F33]">
+              <input type="checkbox" name="published" checked={form.published} onChange={handleInputChange} className="h-4 w-4 rounded border-slate-300 text-[#FF7800] focus:ring-[#FF7800]" />
+              Publish this video on the public Videos page
+            </label>
+
+            {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+            {status ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{status}</div> : null}
+
+            <button type="submit" className="w-full rounded-full bg-[#FF7800] px-5 py-3 text-base font-semibold text-white">Save Video</button>
+          </div>
+        </form>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-2xl font-bold text-[#0B1F33]">Video library</h2>
+
+          {loading ? (
+            <div className="mt-6 rounded-2xl bg-[#F4F6F8] p-6 text-slate-600">Loading videos...</div>
+          ) : (
+            <div className="mt-6 space-y-4">
+              {videos.length ? videos.map((video) => (
+                <div key={video.id || video.youtube_video_id || video.youtube_url} className="rounded-2xl border border-slate-200 bg-[#F4F6F8] p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#FF7800]">{video.category || 'General'}</p>
+                      <h3 className="mt-2 text-lg font-bold text-[#0B1F33]">{video.title}</h3>
+                      <p className="mt-1 text-sm text-slate-600">{video.vehicle_type || 'Automotive'} • {video.level || 'Beginner'} • {video.published ? 'Published' : 'Draft'}</p>
+                    </div>
+                    <button type="button" onClick={() => handleDelete(video.id)} className="rounded-full border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600">Delete</button>
+                  </div>
+                </div>
+              )) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-[#F4F6F8] p-6 text-center text-slate-600">No videos saved yet.</div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LoginPage({ adminSession, onLogin }) {
+  const navigate = useNavigate()
+  const [form, setForm] = useState({ email: '', password: '' })
+  const [error, setError] = useState('')
+
+  if (adminSession) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-20 sm:px-6 lg:px-8">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+          <h1 className="text-3xl font-black text-[#0B1F33]">Admin logged in</h1>
+          <p className="mt-3 text-slate-600">You are already authorized to manage videos.</p>
+          <div className="mt-6 flex flex-col gap-3">
+            <Link to="/admin/videos" className="rounded-full bg-[#FF7800] px-5 py-3 font-semibold text-white">Open Video Manager</Link>
+            <button type="button" onClick={() => onLogin(null)} className="rounded-full border border-slate-300 bg-white px-5 py-3 font-semibold text-[#0B1F33]">Logout</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+
+    const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || defaultAdminCredentials.email).toLowerCase()
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || defaultAdminCredentials.password
+
+    if (form.email.trim().toLowerCase() === adminEmail && form.password === adminPassword) {
+      onLogin({ email: adminEmail })
+      navigate('/admin/videos')
+      return
+    }
+
+    setError('Invalid admin email or password.')
+  }
+
+  return (
+    <div className="mx-auto max-w-md px-4 py-20 sm:px-6 lg:px-8">
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#FF7800]">Admin login</p>
+        <h1 className="mt-2 text-3xl font-black text-[#0B1F33]">Login to Admin</h1>
+        <p className="mt-3 text-slate-600">Use your admin credentials to access the video management workspace.</p>
+
+        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+          <div>
+            <label htmlFor="admin-email" className="mb-2 block text-sm font-medium text-[#0B1F33]">Email</label>
+            <input id="admin-email" type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="admin@mechmaster.local" />
+          </div>
+          <div>
+            <label htmlFor="admin-password" className="mb-2 block text-sm font-medium text-[#0B1F33]">Password</label>
+            <input id="admin-password" type="password" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="••••••••" />
+          </div>
+
+          {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+
+          <button type="submit" className="w-full rounded-full bg-[#FF7800] px-5 py-3 font-semibold text-white">Login to Admin</button>
+        </form>
       </div>
     </div>
   )
