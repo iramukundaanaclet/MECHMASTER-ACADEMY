@@ -24,11 +24,6 @@ import news from './data/news'
 import { createVideo, deleteVideo, getAdminSession, getAllVideos, getPublishedVideos, isVideoDuplicate, signInAdmin, signOutAdmin } from './services/videoService'
 import { getYouTubeId, getYouTubeThumbnail, isValidYouTubeUrl } from './utils/youtube'
 
-const defaultAdminCredentials = {
-  email: 'admin@mechmaster.local',
-  password: 'MechMaster123!',
-}
-
 const adminSessionStorageKey = 'mechmaster-admin-session'
 const videoFallbackStorageKey = 'mechmaster-videos'
 
@@ -604,6 +599,7 @@ function AdminVideosPage({ adminSession, onLogout }) {
   const [error, setError] = useState('')
   const [form, setForm] = useState({
     youtube_url: '',
+    bulk_urls: '',
     title: '',
     description: '',
     category: 'Engine',
@@ -694,6 +690,73 @@ function AdminVideosPage({ adminSession, onLogout }) {
     setStatus('Video saved successfully and is now visible to visitors when published.')
   }
 
+  const handleBulkAdd = async (event) => {
+    event.preventDefault()
+    setError('')
+    setStatus('')
+
+    const urls = String(form.bulk_urls || '')
+      .split(/\r?\n|,|;/)
+      .map((value) => value.trim())
+      .filter(Boolean)
+
+    if (!urls.length) {
+      setError('Paste one or more YouTube links, one per line or separated by commas.')
+      return
+    }
+
+    const validUrls = urls.filter((url) => isValidYouTubeUrl(url))
+
+    if (!validUrls.length) {
+      setError('No valid YouTube URLs were found in the input.')
+      return
+    }
+
+    const existingVideos = readStoredVideos()
+    const allVideos = [...existingVideos, ...videos]
+    let addedCount = 0
+
+    for (const url of validUrls) {
+      const youtubeVideoId = getYouTubeId(url)
+      const alreadyExists = allVideos.some((video) => video.youtube_video_id === youtubeVideoId)
+
+      if (alreadyExists) continue
+
+      const payload = {
+        id: `video-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        youtube_url: url,
+        youtube_video_id: youtubeVideoId,
+        title: `Mechanical video ${new Date().toISOString().slice(0, 10)}`,
+        description: 'New workshop lesson added by admin.',
+        category: form.category,
+        vehicle_type: form.vehicle_type,
+        level: form.level,
+        duration: 'N/A',
+        thumbnail_url: getYouTubeThumbnail(youtubeVideoId),
+        thumbnail: getYouTubeThumbnail(youtubeVideoId),
+        provider: 'MechMaster Academy',
+        published: form.published,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      existingVideos.unshift(payload)
+      allVideos.unshift(payload)
+      addedCount += 1
+    }
+
+    persistStoredVideos(existingVideos)
+    setVideos(existingVideos)
+    setForm((current) => ({ ...current, bulk_urls: '', youtube_url: '' }))
+
+    if (!addedCount) {
+      setError('All of the entered videos already exist in the library.')
+      return
+    }
+
+    setStatus(`${addedCount} video${addedCount > 1 ? 's were' : ' was'} added successfully.`)
+  }
+
   const handleDelete = async (videoId) => {
     await deleteVideo(videoId)
     const nextVideos = videos.filter((video) => video.id !== videoId)
@@ -722,6 +785,12 @@ function AdminVideosPage({ adminSession, onLogout }) {
             <div>
               <label htmlFor="youtube_url" className="mb-2 block text-sm font-medium text-[#0B1F33]">YouTube URL</label>
               <input id="youtube_url" name="youtube_url" value={form.youtube_url} onChange={handleInputChange} className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="https://www.youtube.com/watch?v=..." />
+            </div>
+
+            <div>
+              <label htmlFor="bulk_urls" className="mb-2 block text-sm font-medium text-[#0B1F33]">Bulk YouTube URLs</label>
+              <textarea id="bulk_urls" name="bulk_urls" value={form.bulk_urls} onChange={handleInputChange} rows="5" className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="https://www.youtube.com/watch?v=...&#10;https://youtu.be/....&#10;https://www.youtube.com/watch?v=..." />
+              <p className="mt-2 text-xs text-slate-500">Add multiple links at once, one per line or separated by commas.</p>
             </div>
 
             <div>
@@ -771,7 +840,10 @@ function AdminVideosPage({ adminSession, onLogout }) {
             {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
             {status ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{status}</div> : null}
 
-            <button type="submit" className="w-full rounded-full bg-[#FF7800] px-5 py-3 text-base font-semibold text-white">Save Video</button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button type="submit" className="flex-1 rounded-full bg-[#FF7800] px-5 py-3 text-base font-semibold text-white">Save One Video</button>
+              <button type="button" onClick={handleBulkAdd} className="flex-1 rounded-full border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-[#0B1F33]">Add Bulk Videos</button>
+            </div>
           </div>
         </form>
 

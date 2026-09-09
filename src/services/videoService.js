@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
+const VIDEO_STORAGE_KEY = 'mechmaster-videos'
 
 const fallbackVideos = [
   {
@@ -38,120 +33,93 @@ const fallbackVideos = [
   },
 ]
 
-export async function signInAdmin(email, password) {
-  if (!supabase) {
-    const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || 'admin@mechmaster.local').toLowerCase()
-    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'MechMaster123!'
+function dedupeVideos(videos) {
+  return videos.filter((video, index, list) => {
+    const key = video.id || `${video.youtube_video_id || video.youtube_url || 'video'}-${index}`
+    return list.findIndex((item) => (item.id || `${item.youtube_video_id || item.youtube_url || 'video'}-${index}`) === key) === index
+  })
+}
 
-    if (email.trim().toLowerCase() === adminEmail && password === adminPassword) {
-      return { data: { user: { email: adminEmail } }, error: null }
-    }
-
-    return { data: null, error: { message: 'Invalid admin email or password.' } }
+function readStoredVideos() {
+  try {
+    const raw = localStorage.getItem(VIDEO_STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (error) {
+    return []
   }
-
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-  return { data, error }
 }
 
-export async function signOutAdmin() {
-  if (!supabase) return { error: null }
-  return supabase.auth.signOut()
-}
-
-export async function getAdminSession() {
-  if (!supabase) return { data: { session: null }, error: null }
-  return supabase.auth.getSession()
+async function readPublicVideos() {
+  try {
+    const response = await fetch('/videos.json', { cache: 'no-store' })
+    if (!response.ok) return []
+    const data = await response.json()
+    return Array.isArray(data) ? data : []
+  } catch (error) {
+    return []
+  }
 }
 
 export async function getPublishedVideos() {
-  if (!supabase) return fallbackVideos
-
-  const { data, error } = await supabase
-    .from('videos')
-    .select('*')
-    .eq('published', true)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching videos:', error)
-    return fallbackVideos
-  }
-
-  return data || []
+  const publicVideos = await readPublicVideos()
+  const storedVideos = readStoredVideos()
+  const merged = dedupeVideos([...publicVideos, ...storedVideos, ...fallbackVideos])
+  return merged.filter((video) => video.published !== false)
 }
 
 export async function getAllVideos() {
-  if (!supabase) return fallbackVideos
-
-  const { data, error } = await supabase
-    .from('videos')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching admin videos:', error)
-    return fallbackVideos
-  }
-
-  return data || []
+  const publicVideos = await readPublicVideos()
+  const storedVideos = readStoredVideos()
+  return dedupeVideos([...publicVideos, ...storedVideos, ...fallbackVideos])
 }
 
 export async function getVideoById(id) {
-  if (!supabase) {
-    return fallbackVideos.find((video) => video.id === id) || null
-  }
-
-  const { data, error } = await supabase.from('videos').select('*').eq('id', id).single()
-
-  if (error) {
-    console.error('Error fetching video by ID:', error)
-    return null
-  }
-
-  return data
+  const videos = await getAllVideos()
+  return videos.find((video) => video.id === id) || null
 }
 
 export async function createVideo(videoPayload) {
-  if (!supabase) {
-    return { data: { ...videoPayload, id: crypto.randomUUID() }, error: null }
-  }
-
-  const { data, error } = await supabase.from('videos').insert([videoPayload]).select().single()
-  return { data, error }
+  const nextVideos = [videoPayload, ...readStoredVideos()]
+  localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify(dedupeVideos(nextVideos)))
+  return { data: videoPayload, error: null }
 }
 
 export async function updateVideo(id, updates) {
-  if (!supabase) {
-    return { data: { id, ...updates }, error: null }
-  }
-
-  const { data, error } = await supabase.from('videos').update(updates).eq('id', id).select().single()
-  return { data, error }
+  const currentVideos = readStoredVideos()
+  const updated = currentVideos.map((video) => (video.id === id ? { ...video, ...updates, updated_at: new Date().toISOString() } : video))
+  localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify(updated))
+  return { data: updated.find((video) => video.id === id) || null, error: null }
 }
 
 export async function deleteVideo(id) {
-  if (!supabase) {
-    return { error: null }
-  }
-
-  const { error } = await supabase.from('videos').delete().eq('id', id)
-  return { error }
+  const currentVideos = readStoredVideos()
+  const nextVideos = currentVideos.filter((video) => video.id !== id)
+  localStorage.setItem(VIDEO_STORAGE_KEY, JSON.stringify(nextVideos))
+  return { error: null }
 }
 
 export async function isVideoDuplicate(youtubeVideoId) {
-  if (!supabase) return false
+  const videos = await getAllVideos()
+  return videos.some((video) => video.youtube_video_id === youtubeVideoId)
+}
 
-  const { data, error } = await supabase
-    .from('videos')
-    .select('id')
-    .eq('youtube_video_id', youtubeVideoId)
-    .limit(1)
+export async function signInAdmin(email, password) {
+  const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || 'admin@mechmaster.academy').trim().toLowerCase()
+  const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'mechmaster123'
 
-  if (error) {
-    console.error('Duplicate check failed:', error)
-    return false
+  if (email.trim().toLowerCase() === adminEmail && password === adminPassword) {
+    return { data: { user: { email: adminEmail } }, error: null }
   }
 
-  return Boolean(data && data.length)
+  return { data: null, error: { message: 'Invalid admin email or password.' } }
+}
+
+export async function signOutAdmin() {
+  return { error: null }
+}
+
+export async function getAdminSession() {
+  return { data: { session: null }, error: null }
 }
