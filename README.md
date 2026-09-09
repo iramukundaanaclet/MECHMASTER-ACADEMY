@@ -1,4 +1,37 @@
-# React + Vite
+# MECHMASTER ACADEMY
+
+## Publish YouTube videos
+
+This project stores YouTube metadata only. It does not upload or store video files, use a database, or require a YouTube API key.
+
+The public video library is loaded from `public/videos.json`, which is deployed with the website. Browser `localStorage` is used only for temporary admin work on the current computer, so it is not treated as shared storage.
+
+To publish videos for every visitor:
+
+1. Open `/login`, then open `/admin/videos`.
+2. Add one or more YouTube URLs and click **Add Bulk Videos**.
+3. Click **Download videos.json**.
+4. Replace the project's `public/videos.json` with the downloaded file.
+5. Commit and deploy the updated project.
+
+After deployment, every visitor receives the same `public/videos.json` file through `/videos`. Without a database or server-side storage, a browser cannot automatically write changes into the deployed website; the export and deploy step is therefore required.
+
+## Local development
+
+```bash
+npm install
+npm run dev
+```
+
+## Production check
+
+```bash
+npm run build
+```
+
+---
+
+The original Vite template notes follow.
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

@@ -64,8 +64,7 @@ async function readPublicVideos() {
 
 export async function getPublishedVideos() {
   const publicVideos = await readPublicVideos()
-  const storedVideos = readStoredVideos()
-  const merged = dedupeVideos([...publicVideos, ...storedVideos, ...fallbackVideos])
+  const merged = dedupeVideos([...publicVideos, ...fallbackVideos])
   return merged.filter((video) => video.published !== false)
 }
 
@@ -73,6 +72,10 @@ export async function getAllVideos() {
   const publicVideos = await readPublicVideos()
   const storedVideos = readStoredVideos()
   return dedupeVideos([...publicVideos, ...storedVideos, ...fallbackVideos])
+}
+
+export function createVideosJson(videos) {
+  return JSON.stringify(videos, null, 2)
 }
 
 export async function getVideoById(id) {

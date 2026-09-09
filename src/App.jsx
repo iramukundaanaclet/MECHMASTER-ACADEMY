@@ -21,7 +21,7 @@ import diagnostics from './data/diagnostics'
 import quizzes from './data/quizzes'
 import resources from './data/resources'
 import news from './data/news'
-import { createVideo, deleteVideo, getAdminSession, getAllVideos, getPublishedVideos, isVideoDuplicate, signInAdmin, signOutAdmin } from './services/videoService'
+import { createVideo, createVideosJson, deleteVideo, getAdminSession, getAllVideos, getPublishedVideos, isVideoDuplicate, signInAdmin, signOutAdmin } from './services/videoService'
 import { getYouTubeId, getYouTubeThumbnail, isValidYouTubeUrl } from './utils/youtube'
 
 const adminSessionStorageKey = 'mechmaster-admin-session'
@@ -38,6 +38,16 @@ function getStoredVideos() {
 
 function persistStoredVideos(items) {
   localStorage.setItem(videoFallbackStorageKey, JSON.stringify(items))
+}
+
+function downloadVideosJson(items) {
+  const blob = new Blob([createVideosJson(items)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'videos.json'
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 const categoryCards = [
@@ -680,6 +690,7 @@ function AdminVideosPage({ adminSession, onLogout }) {
     setVideos(merged)
     setForm({
       youtube_url: '',
+      bulk_urls: '',
       title: '',
       description: '',
       category: 'Engine',
@@ -762,6 +773,12 @@ function AdminVideosPage({ adminSession, onLogout }) {
     const nextVideos = videos.filter((video) => video.id !== videoId)
     setVideos(nextVideos)
     persistStoredVideos(nextVideos)
+  }
+
+  const handleExport = () => {
+    const publicVideos = videos.filter((video) => video.published !== false)
+    downloadVideosJson(publicVideos)
+    setStatus('videos.json downloaded. Replace public/videos.json with it, then commit and deploy to share changes with everyone.')
   }
 
   return (
@@ -848,7 +865,13 @@ function AdminVideosPage({ adminSession, onLogout }) {
         </form>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-bold text-[#0B1F33]">Video library</h2>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-2xl font-bold text-[#0B1F33]">Video library</h2>
+            <button type="button" onClick={handleExport} className="rounded-full border border-[#FF7800] bg-white px-4 py-2 text-sm font-semibold text-[#FF7800]">Download videos.json</button>
+          </div>
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+            New videos are saved only in this browser until you download <strong>videos.json</strong>, replace <strong>public/videos.json</strong> in the project, and deploy the update. This is required because the site has no database or server storage.
+          </div>
 
           {loading ? (
             <div className="mt-6 rounded-2xl bg-[#F4F6F8] p-6 text-slate-600">Loading videos...</div>
