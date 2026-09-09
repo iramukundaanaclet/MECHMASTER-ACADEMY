@@ -65,10 +65,6 @@ function getLocalVideos() {
   }
 }
 
-function saveLocalVideos(videos) {
-  localStorage.setItem(localVideosStorageKey, JSON.stringify(videos))
-}
-
 async function getAuthenticatedUser() {
   if (!auth) return null
   if (auth.currentUser) return auth.currentUser
@@ -116,11 +112,7 @@ export async function getVideoById(id) {
 }
 
 export async function createVideo(videoPayload) {
-  if (!database) {
-    const data = { ...videoPayload, id: `local-${Date.now()}` }
-    saveLocalVideos([data, ...getLocalVideos()])
-    return { data, error: null }
-  }
+  if (!database) return { data: null, error: getConfigurationError() }
   if (!await getAuthenticatedUser()) return { data: null, error: { message: 'Please log in as an admin first.' } }
 
   try {
@@ -147,10 +139,7 @@ export async function updateVideo(id, updates) {
 }
 
 export async function deleteVideo(id) {
-  if (!database) {
-    saveLocalVideos(getLocalVideos().filter((video) => video.id !== id))
-    return { error: null }
-  }
+  if (!database) return { error: getConfigurationError() }
   if (!await getAuthenticatedUser()) return { error: { message: 'Please log in as an admin first.' } }
   try {
     await remove(ref(database, `videos/${id}`))

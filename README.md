@@ -13,6 +13,8 @@ The app stores YouTube metadata in Firebase Realtime Database so every visitor s
 5. Open **Authentication > Users** and create the admin user email/password.
 6. Deploy the app with all `VITE_FIREBASE_*` environment variables.
 
+The Firebase environment variables are required for publishing shared videos. Without them, videos cannot be saved to the public library; browser-only storage must not be used for production publishing.
+
 Firebase web API keys are intended to be included in browser applications. Database rules protect the data: visitors can read published videos, while only authenticated admin users can add, edit, or delete videos. Do not put Firebase Admin SDK credentials in this React app.
 
 ### Add videos
