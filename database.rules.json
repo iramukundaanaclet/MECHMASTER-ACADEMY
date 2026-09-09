@@ -1,6 +1,7 @@
 {
   "rules": {
     "videos": {
+      ".indexOn": ["published"],
       ".read": "auth != null || (query.orderByChild == 'published' && query.equalTo == true)",
       "$videoId": {
         ".write": "auth != null"

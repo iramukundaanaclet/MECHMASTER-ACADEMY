@@ -17,7 +17,7 @@ Firebase web API keys are intended to be included in browser applications. Datab
 
 ### Add videos
 
-1. Open `/login` and sign in with the Supabase admin user.
+1. Open `/login` and sign in with the Firebase Authentication admin user.
 2. Open `/admin/videos`.
 3. Paste one YouTube URL or several URLs in the bulk box.
 4. Click **Save One Video** or **Add Bulk Videos**.

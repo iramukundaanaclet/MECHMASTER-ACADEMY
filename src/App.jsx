@@ -25,6 +25,16 @@ import { createVideo, deleteVideo, getAdminSession, getAllVideos, getPublishedVi
 import { getYouTubeId, getYouTubeThumbnail, isValidYouTubeUrl } from './utils/youtube'
 
 const adminSessionStorageKey = 'mechmaster-admin-session'
+const localVideosStorageKey = 'mechmaster-local-videos'
+
+function getStoredVideos() {
+  try {
+    const storedVideos = localStorage.getItem(localVideosStorageKey)
+    return storedVideos ? JSON.parse(storedVideos) : []
+  } catch (error) {
+    return []
+  }
+}
 const categoryCards = [
   { title: 'Automotive', description: 'Vehicle fundamentals, powertrains, electrical and repair systems.', icon: '🚗', path: '/automotive' },
   { title: 'Motorcycle', description: 'Two- and four-stroke systems, brakes, fuel and electrical learning.', icon: '🏍️', path: '/motorcycle' },
@@ -653,7 +663,7 @@ function AdminVideosPage({ adminSession, onLogout }) {
     const { data, error: saveError } = await createVideo(payload)
 
     if (saveError) {
-      setError('Unable to save the video right now.')
+      setError(saveError.message || 'Unable to save the video right now.')
       return
     }
 
@@ -838,7 +848,7 @@ function AdminVideosPage({ adminSession, onLogout }) {
             <h2 className="text-2xl font-bold text-[#0B1F33]">Video library</h2>
           </div>
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-            Videos are saved in the shared Supabase database. Every visitor sees published videos from the same online library.
+            Videos are saved in the shared Firebase Realtime Database. Every visitor sees published videos from the same online library.
           </div>
 
           {loading ? (

@@ -16,6 +16,7 @@ const firebaseConfigured = Object.values(firebaseConfig).every(Boolean)
 const firebaseApp = firebaseConfigured ? initializeApp(firebaseConfig) : null
 const auth = firebaseApp ? getAuth(firebaseApp) : null
 const database = firebaseApp ? getDatabase(firebaseApp) : null
+const localVideosStorageKey = 'mechmaster-local-videos'
 
 const fallbackVideos = [
   {
@@ -55,8 +56,33 @@ function recordsFromSnapshot(snapshot) {
   return Object.values(snapshot.val())
 }
 
+function getLocalVideos() {
+  try {
+    const storedVideos = localStorage.getItem(localVideosStorageKey)
+    return storedVideos ? JSON.parse(storedVideos) : []
+  } catch (error) {
+    return []
+  }
+}
+
+function saveLocalVideos(videos) {
+  localStorage.setItem(localVideosStorageKey, JSON.stringify(videos))
+}
+
+async function getAuthenticatedUser() {
+  if (!auth) return null
+  if (auth.currentUser) return auth.currentUser
+
+  return new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe()
+      resolve(user)
+    })
+  })
+}
+
 export async function getPublishedVideos() {
-  if (!database) return fallbackVideos
+  if (!database) return [...fallbackVideos, ...getLocalVideos().filter((video) => video.published)]
 
   try {
     const videosQuery = query(ref(database, 'videos'), orderByChild('published'), equalTo(true))
@@ -69,7 +95,7 @@ export async function getPublishedVideos() {
 }
 
 export async function getAllVideos() {
-  if (!database) return fallbackVideos
+  if (!database) return [...fallbackVideos, ...getLocalVideos()]
   try {
     const snapshot = await get(ref(database, 'videos'))
     return recordsFromSnapshot(snapshot)
@@ -80,7 +106,7 @@ export async function getAllVideos() {
 }
 
 export async function getVideoById(id) {
-  if (!database) return fallbackVideos.find((video) => video.id === id) || null
+  if (!database) return [...fallbackVideos, ...getLocalVideos()].find((video) => video.id === id) || null
   try {
     const snapshot = await get(ref(database, `videos/${id}`))
     return snapshot.exists() ? snapshot.val() : null
@@ -90,7 +116,12 @@ export async function getVideoById(id) {
 }
 
 export async function createVideo(videoPayload) {
-  if (!database || !auth?.currentUser) return { data: null, error: database ? { message: 'Please log in as an admin first.' } : getConfigurationError() }
+  if (!database) {
+    const data = { ...videoPayload, id: `local-${Date.now()}` }
+    saveLocalVideos([data, ...getLocalVideos()])
+    return { data, error: null }
+  }
+  if (!await getAuthenticatedUser()) return { data: null, error: { message: 'Please log in as an admin first.' } }
 
   try {
     const videoRef = push(ref(database, 'videos'))
@@ -103,7 +134,8 @@ export async function createVideo(videoPayload) {
 }
 
 export async function updateVideo(id, updates) {
-  if (!database || !auth?.currentUser) return { data: null, error: database ? { message: 'Please log in as an admin first.' } : getConfigurationError() }
+  if (!database) return { data: null, error: getConfigurationError() }
+  if (!await getAuthenticatedUser()) return { data: null, error: { message: 'Please log in as an admin first.' } }
 
   try {
     const data = { ...updates, updated_at: new Date().toISOString() }
@@ -115,7 +147,11 @@ export async function updateVideo(id, updates) {
 }
 
 export async function deleteVideo(id) {
-  if (!database || !auth?.currentUser) return { error: database ? { message: 'Please log in as an admin first.' } : getConfigurationError() }
+  if (!database) {
+    saveLocalVideos(getLocalVideos().filter((video) => video.id !== id))
+    return { error: null }
+  }
+  if (!await getAuthenticatedUser()) return { error: { message: 'Please log in as an admin first.' } }
   try {
     await remove(ref(database, `videos/${id}`))
     return { error: null }
