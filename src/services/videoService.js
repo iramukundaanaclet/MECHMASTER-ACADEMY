@@ -1,8 +1,21 @@
-import { createClient } from '@supabase/supabase-js'
+import { initializeApp } from 'firebase/app'
+import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { equalTo, get, getDatabase, orderByChild, push, query, ref, remove, set, update } from 'firebase/database'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+}
+
+const firebaseConfigured = Object.values(firebaseConfig).every(Boolean)
+const firebaseApp = firebaseConfigured ? initializeApp(firebaseConfig) : null
+const auth = firebaseApp ? getAuth(firebaseApp) : null
+const database = firebaseApp ? getDatabase(firebaseApp) : null
 
 const fallbackVideos = [
   {
@@ -33,100 +46,73 @@ const fallbackVideos = [
   },
 ]
 
+function getConfigurationError() {
+  return { message: 'Firebase is not configured. Add the VITE_FIREBASE_* values to your deployment environment.' }
+}
+
+function recordsFromSnapshot(snapshot) {
+  if (!snapshot.exists()) return []
+  return Object.values(snapshot.val())
+}
+
 export async function getPublishedVideos() {
-  if (!supabase) return fallbackVideos
+  if (!database) return fallbackVideos
 
-  const { data, error } = await supabase
-    .from('videos')
-    .select('*')
-    .eq('published', true)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Could not load shared videos:', error)
-    return fallbackVideos
-  }
-
-  return data || []
+  const videosQuery = query(ref(database, 'videos'), orderByChild('published'), equalTo(true))
+  const snapshot = await get(videosQuery)
+  return recordsFromSnapshot(snapshot)
 }
 
 export async function getAllVideos() {
-  if (!supabase) return fallbackVideos
-
-  const { data, error } = await supabase
-    .from('videos')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Could not load admin videos:', error)
-    return fallbackVideos
-  }
-
-  return data || []
+  if (!database) return fallbackVideos
+  const snapshot = await get(ref(database, 'videos'))
+  return recordsFromSnapshot(snapshot)
 }
 
 export async function getVideoById(id) {
-  if (!supabase) return fallbackVideos.find((video) => video.id === id) || null
-
-  const { data, error } = await supabase.from('videos').select('*').eq('id', id).single()
-  return error ? null : data
+  if (!database) return fallbackVideos.find((video) => video.id === id) || null
+  const snapshot = await get(ref(database, `videos/${id}`))
+  return snapshot.exists() ? snapshot.val() : null
 }
 
 export async function createVideo(videoPayload) {
-  if (!supabase) {
-    return { data: null, error: { message: 'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.' } }
-  }
+  if (!database || !auth?.currentUser) return { data: null, error: database ? { message: 'Please log in as an admin first.' } : getConfigurationError() }
 
-  const { data, error } = await supabase.from('videos').insert([videoPayload]).select().single()
-  return { data, error }
+  const videoRef = push(ref(database, 'videos'))
+  const data = { ...videoPayload, id: videoRef.key }
+  await set(videoRef, data)
+  return { data, error: null }
 }
 
 export async function updateVideo(id, updates) {
-  if (!supabase) return { data: null, error: { message: 'Supabase is not configured.' } }
+  if (!database || !auth?.currentUser) return { data: null, error: database ? { message: 'Please log in as an admin first.' } : getConfigurationError() }
 
-  const { data, error } = await supabase.from('videos').update(updates).eq('id', id).select().single()
-  return { data, error }
+  const data = { ...updates, updated_at: new Date().toISOString() }
+  await update(ref(database, `videos/${id}`), data)
+  return { data: { id, ...data }, error: null }
 }
 
 export async function deleteVideo(id) {
-  if (!supabase) return { error: { message: 'Supabase is not configured.' } }
-
-  const { error } = await supabase.from('videos').delete().eq('id', id)
-  return { error }
+  if (!database || !auth?.currentUser) return { error: database ? { message: 'Please log in as an admin first.' } : getConfigurationError() }
+  await remove(ref(database, `videos/${id}`))
+  return { error: null }
 }
 
 export async function isVideoDuplicate(youtubeVideoId) {
-  if (!supabase) return false
-
-  const { data, error } = await supabase
-    .from('videos')
-    .select('id')
-    .eq('youtube_video_id', youtubeVideoId)
-    .limit(1)
-
-  if (error) return false
-  return Boolean(data?.length)
+  const videos = await getAllVideos()
+  return videos.some((video) => video.youtube_video_id === youtubeVideoId)
 }
 
 export async function signInAdmin(email, password) {
-  if (!supabase) {
-    return { data: null, error: { message: 'Configure Supabase before using the admin login.' } }
-  }
-
-  return supabase.auth.signInWithPassword({ email: email.trim(), password })
+  if (!auth) return { data: null, error: getConfigurationError() }
+  return signInWithEmailAndPassword(auth, email.trim(), password)
 }
 
 export async function signOutAdmin() {
-  if (!supabase) return { error: null }
-  return supabase.auth.signOut()
+  if (!auth) return { error: null }
+  return signOut(auth)
 }
 
 export async function getAdminSession() {
-  if (!supabase) return { data: { session: null }, error: null }
-  return supabase.auth.getSession()
-}
-
-export function createVideosJson(videos) {
-  return JSON.stringify(videos, null, 2)
+  return { data: { session: auth?.currentUser ? { user: auth.currentUser } : null }, error: null }
 }

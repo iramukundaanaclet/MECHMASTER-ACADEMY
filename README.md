@@ -2,17 +2,18 @@
 
 ## Shared YouTube video management
 
-The app stores YouTube metadata in Supabase so every visitor sees the same published videos. It never uploads or stores the actual video file, and it does not require a YouTube API key.
+The app stores YouTube metadata in Firebase Realtime Database so every visitor sees the same published videos. It never uploads or stores the actual video file, and it does not require a YouTube API key.
 
-### Supabase setup
+### Firebase setup
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor**, paste the contents of `supabase/schema.sql`, and run it.
-3. Open **Authentication > Users** and create the admin user email/password.
-4. Copy the project URL and public anon key into a local `.env` file using `.env.example`.
-5. Deploy the app with the same `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` environment variables.
+1. Create a project at [firebase.google.com](https://firebase.google.com).
+2. Add a Web app in Firebase Project settings and copy its configuration values into `.env` using `.env.example`.
+3. Create a **Realtime Database** and apply the rules from `database.rules.json`.
+4. Enable **Authentication > Sign-in method > Email/Password**.
+5. Open **Authentication > Users** and create the admin user email/password.
+6. Deploy the app with all `VITE_FIREBASE_*` environment variables.
 
-The anon key is designed to be used in a browser. Never put a Supabase service-role key in this React app. Row-level security allows visitors to read published videos, while only authenticated admin users can add, edit, or delete videos.
+Firebase web API keys are intended to be included in browser applications. Database rules protect the data: visitors can read published videos, while only authenticated admin users can add, edit, or delete videos. Do not put Firebase Admin SDK credentials in this React app.
 
 ### Add videos
 
@@ -21,7 +22,7 @@ The anon key is designed to be used in a browser. Never put a Supabase service-r
 3. Paste one YouTube URL or several URLs in the bulk box.
 4. Click **Save One Video** or **Add Bulk Videos**.
 
-New published videos are immediately available to every visitor at `/videos`, because they are read from the shared Supabase database.
+New published videos are immediately available to every visitor at `/videos`, because they are read from the shared Firebase database.
 
 ## Local development
 
