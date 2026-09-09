@@ -21,7 +21,7 @@ import diagnostics from './data/diagnostics'
 import quizzes from './data/quizzes'
 import resources from './data/resources'
 import news from './data/news'
-import { createVideo, deleteVideo, getAllVideos, getPublishedVideos, isVideoDuplicate } from './services/videoService'
+import { createVideo, deleteVideo, getAdminSession, getAllVideos, getPublishedVideos, isVideoDuplicate, signInAdmin, signOutAdmin } from './services/videoService'
 import { getYouTubeId, getYouTubeThumbnail, isValidYouTubeUrl } from './utils/youtube'
 
 const defaultAdminCredentials = {
@@ -79,6 +79,17 @@ function App() {
       return null
     }
   })
+
+  useEffect(() => {
+    async function restoreSession() {
+      const { data } = await getAdminSession()
+      if (data?.session?.user) {
+        setAdminSession({ email: data.session.user.email })
+      }
+    }
+
+    restoreSession()
+  }, [])
 
   useEffect(() => {
     if (adminSession) {
@@ -806,26 +817,28 @@ function LoginPage({ adminSession, onLogin }) {
           <p className="mt-3 text-slate-600">You are already authorized to manage videos.</p>
           <div className="mt-6 flex flex-col gap-3">
             <Link to="/admin/videos" className="rounded-full bg-[#FF7800] px-5 py-3 font-semibold text-white">Open Video Manager</Link>
-            <button type="button" onClick={() => onLogin(null)} className="rounded-full border border-slate-300 bg-white px-5 py-3 font-semibold text-[#0B1F33]">Logout</button>
+            <button type="button" onClick={async () => {
+              await signOutAdmin()
+              onLogin(null)
+            }} className="rounded-full border border-slate-300 bg-white px-5 py-3 font-semibold text-[#0B1F33]">Logout</button>
           </div>
         </div>
       </div>
     )
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
 
-    const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || defaultAdminCredentials.email).toLowerCase()
-    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || defaultAdminCredentials.password
+    const { data, error: authError } = await signInAdmin(form.email, form.password)
 
-    if (form.email.trim().toLowerCase() === adminEmail && form.password === adminPassword) {
-      onLogin({ email: adminEmail })
-      navigate('/admin/videos')
+    if (authError || !data?.user) {
+      setError(authError?.message || 'Invalid admin email or password.')
       return
     }
 
-    setError('Invalid admin email or password.')
+    onLogin({ email: data.user.email || form.email.trim() })
+    navigate('/admin/videos')
   }
 
   return (

@@ -38,6 +38,32 @@ const fallbackVideos = [
   },
 ]
 
+export async function signInAdmin(email, password) {
+  if (!supabase) {
+    const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || 'admin@mechmaster.local').toLowerCase()
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'MechMaster123!'
+
+    if (email.trim().toLowerCase() === adminEmail && password === adminPassword) {
+      return { data: { user: { email: adminEmail } }, error: null }
+    }
+
+    return { data: null, error: { message: 'Invalid admin email or password.' } }
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  return { data, error }
+}
+
+export async function signOutAdmin() {
+  if (!supabase) return { error: null }
+  return supabase.auth.signOut()
+}
+
+export async function getAdminSession() {
+  if (!supabase) return { data: { session: null }, error: null }
+  return supabase.auth.getSession()
+}
+
 export async function getPublishedVideos() {
   if (!supabase) return fallbackVideos
 
