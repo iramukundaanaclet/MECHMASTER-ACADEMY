@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { equalTo, get, getDatabase, orderByChild, push, query, ref, remove, set, update } from 'firebase/database'
 
 const firebaseConfig = {
@@ -58,44 +58,70 @@ function recordsFromSnapshot(snapshot) {
 export async function getPublishedVideos() {
   if (!database) return fallbackVideos
 
-  const videosQuery = query(ref(database, 'videos'), orderByChild('published'), equalTo(true))
-  const snapshot = await get(videosQuery)
-  return recordsFromSnapshot(snapshot)
+  try {
+    const videosQuery = query(ref(database, 'videos'), orderByChild('published'), equalTo(true))
+    const snapshot = await get(videosQuery)
+    return recordsFromSnapshot(snapshot)
+  } catch (error) {
+    console.error('Could not load public Firebase videos:', error)
+    return fallbackVideos
+  }
 }
 
 export async function getAllVideos() {
   if (!database) return fallbackVideos
-  const snapshot = await get(ref(database, 'videos'))
-  return recordsFromSnapshot(snapshot)
+  try {
+    const snapshot = await get(ref(database, 'videos'))
+    return recordsFromSnapshot(snapshot)
+  } catch (error) {
+    console.error('Could not load Firebase admin videos:', error)
+    return fallbackVideos
+  }
 }
 
 export async function getVideoById(id) {
   if (!database) return fallbackVideos.find((video) => video.id === id) || null
-  const snapshot = await get(ref(database, `videos/${id}`))
-  return snapshot.exists() ? snapshot.val() : null
+  try {
+    const snapshot = await get(ref(database, `videos/${id}`))
+    return snapshot.exists() ? snapshot.val() : null
+  } catch (error) {
+    return null
+  }
 }
 
 export async function createVideo(videoPayload) {
   if (!database || !auth?.currentUser) return { data: null, error: database ? { message: 'Please log in as an admin first.' } : getConfigurationError() }
 
-  const videoRef = push(ref(database, 'videos'))
-  const data = { ...videoPayload, id: videoRef.key }
-  await set(videoRef, data)
-  return { data, error: null }
+  try {
+    const videoRef = push(ref(database, 'videos'))
+    const data = { ...videoPayload, id: videoRef.key }
+    await set(videoRef, data)
+    return { data, error: null }
+  } catch (error) {
+    return { data: null, error }
+  }
 }
 
 export async function updateVideo(id, updates) {
   if (!database || !auth?.currentUser) return { data: null, error: database ? { message: 'Please log in as an admin first.' } : getConfigurationError() }
 
-  const data = { ...updates, updated_at: new Date().toISOString() }
-  await update(ref(database, `videos/${id}`), data)
-  return { data: { id, ...data }, error: null }
+  try {
+    const data = { ...updates, updated_at: new Date().toISOString() }
+    await update(ref(database, `videos/${id}`), data)
+    return { data: { id, ...data }, error: null }
+  } catch (error) {
+    return { data: null, error }
+  }
 }
 
 export async function deleteVideo(id) {
   if (!database || !auth?.currentUser) return { error: database ? { message: 'Please log in as an admin first.' } : getConfigurationError() }
-  await remove(ref(database, `videos/${id}`))
-  return { error: null }
+  try {
+    await remove(ref(database, `videos/${id}`))
+    return { error: null }
+  } catch (error) {
+    return { error }
+  }
 }
 
 export async function isVideoDuplicate(youtubeVideoId) {
@@ -114,5 +140,14 @@ export async function signOutAdmin() {
 }
 
 export async function getAdminSession() {
-  return { data: { session: auth?.currentUser ? { user: auth.currentUser } : null }, error: null }
+  if (!auth) return { data: { session: null }, error: null }
+
+  const user = await new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      unsubscribe()
+      resolve(currentUser)
+    })
+  })
+
+  return { data: { session: user ? { user } : null }, error: null }
 }
