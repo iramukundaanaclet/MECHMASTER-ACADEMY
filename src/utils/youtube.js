@@ -19,6 +19,8 @@ export function getYouTubeVideoId(url) {
   }
 }
 
+export const getYouTubeId = getYouTubeVideoId
+
 export function getYouTubeEmbedUrl(videoId) {
   if (!videoId) return ''
   return `https://www.youtube.com/embed/${videoId}`

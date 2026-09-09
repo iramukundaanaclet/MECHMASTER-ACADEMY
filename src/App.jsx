@@ -1028,32 +1028,6 @@ function ContactPage() {
   )
 }
 
-function LoginPage() {
-  return (
-    <div className="mx-auto max-w-md px-4 py-20 sm:px-6 lg:px-8">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-3xl font-black text-[#0B1F33]">Welcome back</h1>
-        <p className="mt-3 text-slate-600">Demo login interface only. No real authentication is connected yet.</p>
-        <form className="mt-8 space-y-5">
-          <div>
-            <label htmlFor="login-email" className="mb-2 block text-sm font-medium text-[#0B1F33]">Email</label>
-            <input id="login-email" type="email" className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="student@example.com" />
-          </div>
-          <div>
-            <label htmlFor="password" className="mb-2 block text-sm font-medium text-[#0B1F33]">Password</label>
-            <input id="password" type="password" className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF7800]" placeholder="••••••••" />
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button variant="primary" className="flex-1">Login</Button>
-            <Button variant="secondary" className="flex-1">Forgot Password</Button>
-          </div>
-          <Button variant="dark" className="w-full">Create Account</Button>
-        </form>
-      </div>
-    </div>
-  )
-}
-
 function DashboardPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
