@@ -1,20 +1,27 @@
 # MECHMASTER ACADEMY
 
-## Publish YouTube videos
+## Shared YouTube video management
 
-This project stores YouTube metadata only. It does not upload or store video files, use a database, or require a YouTube API key.
+The app stores YouTube metadata in Supabase so every visitor sees the same published videos. It never uploads or stores the actual video file, and it does not require a YouTube API key.
 
-The public video library is loaded from `public/videos.json`, which is deployed with the website. Browser `localStorage` is used only for temporary admin work on the current computer, so it is not treated as shared storage.
+### Supabase setup
 
-To publish videos for every visitor:
+1. Create a project at [supabase.com](https://supabase.com).
+2. Open **SQL Editor**, paste the contents of `supabase/schema.sql`, and run it.
+3. Open **Authentication > Users** and create the admin user email/password.
+4. Copy the project URL and public anon key into a local `.env` file using `.env.example`.
+5. Deploy the app with the same `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` environment variables.
 
-1. Open `/login`, then open `/admin/videos`.
-2. Add one or more YouTube URLs and click **Add Bulk Videos**.
-3. Click **Download videos.json**.
-4. Replace the project's `public/videos.json` with the downloaded file.
-5. Commit and deploy the updated project.
+The anon key is designed to be used in a browser. Never put a Supabase service-role key in this React app. Row-level security allows visitors to read published videos, while only authenticated admin users can add, edit, or delete videos.
 
-After deployment, every visitor receives the same `public/videos.json` file through `/videos`. Without a database or server-side storage, a browser cannot automatically write changes into the deployed website; the export and deploy step is therefore required.
+### Add videos
+
+1. Open `/login` and sign in with the Supabase admin user.
+2. Open `/admin/videos`.
+3. Paste one YouTube URL or several URLs in the bulk box.
+4. Click **Save One Video** or **Add Bulk Videos**.
+
+New published videos are immediately available to every visitor at `/videos`, because they are read from the shared Supabase database.
 
 ## Local development
 

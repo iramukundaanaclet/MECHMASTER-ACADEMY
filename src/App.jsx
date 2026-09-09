@@ -21,35 +21,10 @@ import diagnostics from './data/diagnostics'
 import quizzes from './data/quizzes'
 import resources from './data/resources'
 import news from './data/news'
-import { createVideo, createVideosJson, deleteVideo, getAdminSession, getAllVideos, getPublishedVideos, isVideoDuplicate, signInAdmin, signOutAdmin } from './services/videoService'
+import { createVideo, deleteVideo, getAdminSession, getAllVideos, getPublishedVideos, isVideoDuplicate, signInAdmin, signOutAdmin } from './services/videoService'
 import { getYouTubeId, getYouTubeThumbnail, isValidYouTubeUrl } from './utils/youtube'
 
 const adminSessionStorageKey = 'mechmaster-admin-session'
-const videoFallbackStorageKey = 'mechmaster-videos'
-
-function getStoredVideos() {
-  try {
-    const raw = localStorage.getItem(videoFallbackStorageKey)
-    return raw ? JSON.parse(raw) : []
-  } catch (error) {
-    return []
-  }
-}
-
-function persistStoredVideos(items) {
-  localStorage.setItem(videoFallbackStorageKey, JSON.stringify(items))
-}
-
-function downloadVideosJson(items) {
-  const blob = new Blob([createVideosJson(items)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = 'videos.json'
-  link.click()
-  URL.revokeObjectURL(url)
-}
-
 const categoryCards = [
   { title: 'Automotive', description: 'Vehicle fundamentals, powertrains, electrical and repair systems.', icon: '🚗', path: '/automotive' },
   { title: 'Motorcycle', description: 'Two- and four-stroke systems, brakes, fuel and electrical learning.', icon: '🏍️', path: '/motorcycle' },
@@ -660,7 +635,6 @@ function AdminVideosPage({ adminSession, onLogout }) {
     }
 
     const payload = {
-      id: `video-${Date.now()}`,
       youtube_url: form.youtube_url,
       youtube_video_id: youtubeVideoId,
       title: form.title.trim() || `Mechanical video ${Date.now().toString().slice(-4)}`,
@@ -670,7 +644,6 @@ function AdminVideosPage({ adminSession, onLogout }) {
       level: form.level,
       duration: 'N/A',
       thumbnail_url: getYouTubeThumbnail(youtubeVideoId),
-      thumbnail: getYouTubeThumbnail(youtubeVideoId),
       provider: 'MechMaster Academy',
       published: form.published,
       created_at: new Date().toISOString(),
@@ -686,7 +659,6 @@ function AdminVideosPage({ adminSession, onLogout }) {
 
     const savedVideo = data || payload
     const merged = [savedVideo, ...videos]
-    persistStoredVideos(merged)
     setVideos(merged)
     setForm({
       youtube_url: '',
@@ -723,8 +695,8 @@ function AdminVideosPage({ adminSession, onLogout }) {
       return
     }
 
-    const existingVideos = readStoredVideos()
-    const allVideos = [...existingVideos, ...videos]
+    const existingVideos = [...videos]
+    const allVideos = [...videos]
     let addedCount = 0
 
     for (const url of validUrls) {
@@ -734,7 +706,6 @@ function AdminVideosPage({ adminSession, onLogout }) {
       if (alreadyExists) continue
 
       const payload = {
-        id: `video-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         youtube_url: url,
         youtube_video_id: youtubeVideoId,
         title: `Mechanical video ${new Date().toISOString().slice(0, 10)}`,
@@ -744,19 +715,24 @@ function AdminVideosPage({ adminSession, onLogout }) {
         level: form.level,
         duration: 'N/A',
         thumbnail_url: getYouTubeThumbnail(youtubeVideoId),
-        thumbnail: getYouTubeThumbnail(youtubeVideoId),
         provider: 'MechMaster Academy',
         published: form.published,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
 
-      existingVideos.unshift(payload)
-      allVideos.unshift(payload)
+      const { data, error: saveError } = await createVideo(payload)
+      if (saveError) {
+        setError(saveError.message || 'Unable to save videos to the shared database.')
+        return
+      }
+
+      const savedVideo = data || payload
+      existingVideos.unshift(savedVideo)
+      allVideos.unshift(savedVideo)
       addedCount += 1
     }
 
-    persistStoredVideos(existingVideos)
     setVideos(existingVideos)
     setForm((current) => ({ ...current, bulk_urls: '', youtube_url: '' }))
 
@@ -772,13 +748,6 @@ function AdminVideosPage({ adminSession, onLogout }) {
     await deleteVideo(videoId)
     const nextVideos = videos.filter((video) => video.id !== videoId)
     setVideos(nextVideos)
-    persistStoredVideos(nextVideos)
-  }
-
-  const handleExport = () => {
-    const publicVideos = videos.filter((video) => video.published !== false)
-    downloadVideosJson(publicVideos)
-    setStatus('videos.json downloaded. Replace public/videos.json with it, then commit and deploy to share changes with everyone.')
   }
 
   return (
@@ -867,10 +836,9 @@ function AdminVideosPage({ adminSession, onLogout }) {
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-2xl font-bold text-[#0B1F33]">Video library</h2>
-            <button type="button" onClick={handleExport} className="rounded-full border border-[#FF7800] bg-white px-4 py-2 text-sm font-semibold text-[#FF7800]">Download videos.json</button>
           </div>
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-            New videos are saved only in this browser until you download <strong>videos.json</strong>, replace <strong>public/videos.json</strong> in the project, and deploy the update. This is required because the site has no database or server storage.
+            Videos are saved in the shared Supabase database. Every visitor sees published videos from the same online library.
           </div>
 
           {loading ? (
