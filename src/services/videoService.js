@@ -28,17 +28,24 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-const firebaseConfigured = Object.values(firebaseConfig).every(Boolean)
+const authConfigured = [
+  firebaseConfig.apiKey,
+  firebaseConfig.authDomain,
+  firebaseConfig.projectId,
+  firebaseConfig.appId,
+].every(Boolean)
+
+const databaseConfigured = authConfigured && Boolean(firebaseConfig.databaseURL)
 
 let firebaseApp = null
 let auth = null
 let database = null
 
-if (firebaseConfigured) {
+if (authConfigured) {
   try {
     firebaseApp = initializeApp(firebaseConfig)
     auth = getAuth(firebaseApp)
-    database = getDatabase(firebaseApp)
+    database = databaseConfigured ? getDatabase(firebaseApp) : null
   } catch (error) {
     console.error('Firebase initialization failed:', error)
   }
@@ -80,7 +87,7 @@ const fallbackVideos = [
 function getConfigurationError() {
   return {
     message:
-      'Firebase is not configured. Add the VITE_FIREBASE_* values to your deployment environment.',
+      'Firebase Authentication is not configured. Add VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID and VITE_FIREBASE_APP_ID to your deployment environment.',
   }
 }
 

@@ -12,17 +12,24 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const firebaseConfigured = Object.values(firebaseConfig).every(Boolean);
+const authConfigured = [
+  firebaseConfig.apiKey,
+  firebaseConfig.authDomain,
+  firebaseConfig.projectId,
+  firebaseConfig.appId,
+].every(Boolean);
+const databaseConfigured = authConfigured && Boolean(firebaseConfig.databaseURL);
+
 let app = null;
 let database = null;
 let auth = null;
 
 // Keep the app usable when Firebase variables are missing or invalid in a preview build.
-if (firebaseConfigured) {
+if (authConfigured) {
   try {
     app = initializeApp(firebaseConfig);
-    database = getDatabase(app);
     auth = getAuth(app);
+    database = databaseConfigured ? getDatabase(app) : null;
   } catch (error) {
     console.error("Firebase initialization failed:", error);
   }
