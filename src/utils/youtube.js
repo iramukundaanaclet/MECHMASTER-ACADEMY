@@ -14,7 +14,7 @@ export function getYouTubeVideoId(url) {
     }
 
     return null
-  } catch (error) {
+  } catch {
     return null
   }
 }

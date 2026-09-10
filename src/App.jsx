@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BrowserRouter, Routes, Route, Link, NavLink, useNavigate, useParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
 import Footer from './components/layout/Footer'
 import CourseCard from './components/courses/CourseCard'
@@ -47,15 +47,13 @@ const dashboardCourses = [
   { title: 'Motorcycle Technology', percent: 52, type: 'Course' },
 ]
 
-const resultTypes = ['Course', 'Lesson', 'Video', 'Diagnostic', 'Resource']
-
 function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [adminSession, setAdminSession] = useState(() => {
     try {
       const saved = localStorage.getItem(adminSessionStorageKey)
       return saved ? JSON.parse(saved) : null
-    } catch (error) {
+    } catch {
       return null
     }
   })
