@@ -686,10 +686,14 @@ function AdminVideosPage({ adminSession, onLogout }) {
     const existingVideos = [...videos]
     const allVideos = [...videos]
     let addedCount = 0
+    const addedVideoIds = new Set()
 
     for (const url of validUrls) {
       const youtubeVideoId = getYouTubeId(url)
-      const alreadyExists = allVideos.some((video) => video.youtube_video_id === youtubeVideoId)
+      const normalizedVideoId = youtubeVideoId?.toLowerCase()
+      const alreadyExists = !normalizedVideoId || addedVideoIds.has(normalizedVideoId) || allVideos.some(
+        (video) => typeof video.youtube_video_id === 'string' && video.youtube_video_id.toLowerCase() === normalizedVideoId
+      )
 
       if (alreadyExists) continue
 
@@ -718,6 +722,7 @@ function AdminVideosPage({ adminSession, onLogout }) {
       const savedVideo = data || payload
       existingVideos.unshift(savedVideo)
       allVideos.unshift(savedVideo)
+      addedVideoIds.add(normalizedVideoId)
       addedCount += 1
     }
 

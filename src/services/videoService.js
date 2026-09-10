@@ -300,11 +300,17 @@ export async function deleteVideo(id) {
 }
 
 export async function isVideoDuplicate(youtubeVideoId) {
+  if (!youtubeVideoId) {
+    return false
+  }
+
+  const normalizedVideoId = youtubeVideoId.trim().toLowerCase()
   const videos = await getAllVideos()
 
   return videos.some(
     (video) =>
-      video.youtube_video_id === youtubeVideoId
+      typeof video.youtube_video_id === 'string' &&
+      video.youtube_video_id.trim().toLowerCase() === normalizedVideoId
   )
 }
 
