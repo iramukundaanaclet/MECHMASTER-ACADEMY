@@ -12,12 +12,22 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+const firebaseConfigured = Object.values(firebaseConfig).every(Boolean);
+let app = null;
+let database = null;
+let auth = null;
 
-// Realtime Database
-export const database = getDatabase(app);
+// Keep the app usable when Firebase variables are missing or invalid in a preview build.
+if (firebaseConfigured) {
+  try {
+    app = initializeApp(firebaseConfig);
+    database = getDatabase(app);
+    auth = getAuth(app);
+  } catch (error) {
+    console.error("Firebase initialization failed:", error);
+  }
+}
 
-// Firebase Authentication
-export const auth = getAuth(app);
+export { auth, database };
 
 export default app;

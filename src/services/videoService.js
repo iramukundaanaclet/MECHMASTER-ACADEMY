@@ -30,12 +30,19 @@ const firebaseConfig = {
 
 const firebaseConfigured = Object.values(firebaseConfig).every(Boolean)
 
-const firebaseApp = firebaseConfigured
-  ? initializeApp(firebaseConfig)
-  : null
+let firebaseApp = null
+let auth = null
+let database = null
 
-const auth = firebaseApp ? getAuth(firebaseApp) : null
-const database = firebaseApp ? getDatabase(firebaseApp) : null
+if (firebaseConfigured) {
+  try {
+    firebaseApp = initializeApp(firebaseConfig)
+    auth = getAuth(firebaseApp)
+    database = getDatabase(firebaseApp)
+  } catch (error) {
+    console.error('Firebase initialization failed:', error)
+  }
+}
 
 const fallbackVideos = [
   {
