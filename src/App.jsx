@@ -474,8 +474,9 @@ function LessonPage() {
 }
 
 function VideosPage() {
-  const [allVideos, setAllVideos] = useState(videos)
-  const [selectedVideo, setSelectedVideo] = useState(videos[0])
+  const [allVideos, setAllVideos] = useState([])
+  const [selectedVideo, setSelectedVideo] = useState(null)
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filters, setFilters] = useState({ vehicleType: 'All', category: 'All', level: 'All' })
 
@@ -489,7 +490,8 @@ function VideosPage() {
 
       const safeVideos = publishedVideos.length ? publishedVideos : videos
       setAllVideos(safeVideos)
-      setSelectedVideo((current) => current || safeVideos[0])
+      setSelectedVideo(safeVideos[0] || null)
+      setLoading(false)
     }
 
     loadVideos()
@@ -538,7 +540,9 @@ function VideosPage() {
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          {selectedVideo ? (
+          {loading ? (
+            <div className="rounded-2xl bg-[#F4F6F8] p-8 text-center text-slate-600">Loading published videos...</div>
+          ) : selectedVideo ? (
             <>
               <YouTubePlayer videoId={selectedVideoId || selectedVideo.youtube_video_id || selectedVideo.id} title={selectedVideo.title} />
               <div className="mt-6">
@@ -562,7 +566,7 @@ function VideosPage() {
 
         <div className="space-y-4">
           {filteredVideos.length ? filteredVideos.map((video) => (
-            <VideoCard key={video.id || video.youtube_video_id || video.youtube_url} video={video} onSelect={() => setSelectedVideo(video)} selected={selectedVideo?.id === video.id} />
+            <VideoCard key={video.id || video.youtube_video_id || video.youtube_url} video={video} onSelect={() => setSelectedVideo(video)} selected={selectedVideo?.id === video.id && selectedVideo?.youtube_video_id === video.youtube_video_id} />
           )) : null}
         </div>
       </div>
