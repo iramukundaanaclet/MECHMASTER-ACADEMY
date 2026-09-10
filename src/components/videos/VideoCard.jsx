@@ -1,5 +1,8 @@
+import { getYouTubeId, getYouTubeThumbnail } from '../../utils/youtube'
+
 const VideoCard = ({ video, onSelect, selected = false }) => {
-  const thumbnail = video.thumbnail_url || video.thumbnail || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=900&q=80'
+  const youtubeId = getYouTubeId(video.youtube_video_id || video.youtube_url || '')
+  const thumbnail = video.thumbnail_url || video.thumbnail || getYouTubeThumbnail(youtubeId) || 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=900&q=80'
 
   return (
     <article className={`overflow-hidden rounded-2xl border shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md ${selected ? 'border-[#FF7800] bg-[#FFF3E8]' : 'border-slate-200 bg-white'}`}>
