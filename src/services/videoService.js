@@ -19,27 +19,16 @@ import {
 } from 'firebase/database'
 import firebaseConfig from '../firebaseConfig'
 
-const authConfigured = [
-  firebaseConfig.apiKey,
-  firebaseConfig.authDomain,
-  firebaseConfig.projectId,
-  firebaseConfig.appId,
-].every(Boolean)
+let firebaseApp
+let auth
+let database
 
-const databaseConfigured = authConfigured && Boolean(firebaseConfig.databaseURL)
-
-let firebaseApp = null
-let auth = null
-let database = null
-
-if (authConfigured) {
-  try {
-    firebaseApp = initializeApp(firebaseConfig)
-    auth = getAuth(firebaseApp)
-    database = databaseConfigured ? getDatabase(firebaseApp) : null
-  } catch (error) {
-    console.error('Firebase initialization failed:', error)
-  }
+try {
+  firebaseApp = initializeApp(firebaseConfig)
+  auth = getAuth(firebaseApp)
+  database = getDatabase(firebaseApp)
+} catch (error) {
+  console.error('Firebase initialization failed:', error)
 }
 
 const fallbackVideos = [
