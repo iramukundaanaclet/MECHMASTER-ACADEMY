@@ -527,7 +527,9 @@ function VideosPage() {
     }
   }, [filteredVideos, selectedVideo])
 
-  const selectedVideoId = selectedVideo ? selectedVideo.youtube_video_id || getYouTubeId(selectedVideo.youtube_url || '') : ''
+  const selectedVideoId = selectedVideo
+    ? getYouTubeId(selectedVideo.youtube_video_id || selectedVideo.youtube_url || '')
+    : ''
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -544,7 +546,7 @@ function VideosPage() {
             <div className="rounded-2xl bg-[#F4F6F8] p-8 text-center text-slate-600">Loading published videos...</div>
           ) : selectedVideo ? (
             <>
-              <YouTubePlayer videoId={selectedVideoId || selectedVideo.youtube_video_id || selectedVideo.id} title={selectedVideo.title} />
+              <YouTubePlayer videoId={selectedVideoId} title={selectedVideo.title} />
               <div className="mt-6">
                 <div className="flex flex-wrap items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#FF7800]">
                   <span>{selectedVideo.category || selectedVideo.vehicle_type || 'General'}</span>

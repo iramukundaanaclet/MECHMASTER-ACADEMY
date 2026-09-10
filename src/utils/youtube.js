@@ -3,8 +3,10 @@ export function getYouTubeVideoId(url) {
 
   try {
     const value = url.trim()
+    if (/^[A-Za-z0-9_-]{11}$/.test(value)) return value
+
     const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtu\.be\/)([A-Za-z0-9_-]{11})/,
+      /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/,
       /youtube\.com\/watch\?.*v=([A-Za-z0-9_-]{11})/,
     ]
 
